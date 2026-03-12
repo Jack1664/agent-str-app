@@ -25,7 +25,14 @@ class _ChatScreenState extends State<ChatScreen> {
     final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-    final password = await _promptPassword(context);
+    // 1. Check if we have a cached password from the Challenge auth
+    String? password = chatProvider.tempPassword;
+
+    // 2. If no cache, prompt user
+    if (password == null) {
+      password = await _promptPassword(context);
+    }
+
     if (password == null || !mounted) return;
 
     final seed = CryptoUtil.decryptSeed(wallet.encryptedBase64Seed, password);

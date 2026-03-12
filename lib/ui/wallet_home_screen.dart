@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
+import '../core/crypto_util.dart';
 import 'chat_screen.dart';
 import 'add_friend_screen.dart';
 
@@ -13,7 +14,8 @@ class WalletHomeScreen extends StatefulWidget {
 }
 
 class _WalletHomeScreenState extends State<WalletHomeScreen> {
-  final _urlController = TextEditingController(text: 'ws://127.0.0.1:8080');
+  final _urlController = TextEditingController(text: 'ws://112.126.60.140:8765/ws/agent');
+  bool _isAuthDialogOpen = false;
 
   @override
   void initState() {
@@ -21,6 +23,102 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _tryAutoConnect();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkAuthStatus();
+  }
+
+  void _checkAuthStatus() {
+    final chatProvider = Provider.of<ChatProvider>(context);
+    if (chatProvider.isAuthPending && !_isAuthDialogOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAuthDialog();
+      });
+    }
+  }
+
+  void _showAuthDialog() {
+    if (_isAuthDialogOpen) return;
+    _isAuthDialogOpen = true;
+
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
+    String password = '';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Row(
+          children: [
+            Icon(Icons.security_rounded, color: Color(0xFF00D1C1)),
+            SizedBox(width: 12),
+            Text('Identity Challenge', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'The relay requires a signature to verify your identity. Enter your wallet password to continue.',
+              style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              obscureText: true,
+              onChanged: (v) => password = v,
+              decoration: InputDecoration(
+                labelText: 'Wallet Password',
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                prefixIcon: const Icon(Icons.lock_outline),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _isAuthDialogOpen = false;
+              chatProvider.disconnect();
+            },
+            child: const Text('Disconnect', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final seed = CryptoUtil.decryptSeed(wallet.encryptedBase64Seed, password);
+              if (seed != null) {
+                Navigator.pop(context);
+                final success = await chatProvider.authenticateWithSeed(seed, password);
+                _isAuthDialogOpen = false;
+                if (!success && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Authentication failed'), behavior: SnackBarBehavior.floating),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Invalid password'), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: const Text('Authenticate'),
+          ),
+        ],
+      ),
+    ).then((_) => _isAuthDialogOpen = false);
   }
 
   void _tryAutoConnect() {
@@ -176,24 +274,19 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(wallet.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const Icon(Icons.keyboard_arrow_down, size: 18),
-              ],
-            ),
+            const Text('Wallet Chat', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
             Text(
-              '${wallet.agentAddress.substring(0, 8)}...${wallet.agentAddress.substring(wallet.agentAddress.length - 8)}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w400),
+              '${wallet.name} • ${wallet.agentAddress.substring(0, 8)}...',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w400),
             ),
           ],
         ),
         actions: [
           IconButton(
             icon: Icon(
-              chatProvider.isConnected ? Icons.cloud_done : Icons.cloud_off,
-              color: chatProvider.isConnected ? const Color(0xFF00D1C1) : Colors.grey,
+              chatProvider.isConnected ? (chatProvider.isAuthenticated ? Icons.cloud_done : Icons.cloud_queue) : Icons.cloud_off,
+              color: chatProvider.isAuthenticated ? const Color(0xFF00D1C1) : (chatProvider.isConnected ? Colors.orange : Colors.grey),
             ),
             onPressed: chatProvider.isConnected ? () => chatProvider.disconnect() : _connectRelay,
           ),
@@ -218,6 +311,27 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                     child: Text(
                       'Relay disconnected. Tap cloud icon to connect.',
                       style: TextStyle(color: Colors.orange.shade800, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (chatProvider.isConnected && !chatProvider.isAuthenticated)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: Colors.blue.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Authentication required. Tap cloud icon or wait for prompt.',
+                      style: TextStyle(color: Colors.blue.shade800, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ],
