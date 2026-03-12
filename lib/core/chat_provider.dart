@@ -249,6 +249,29 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<void> allowAgent(String walletId, String agentId) async {
+    if (_activePrivateKey == null) return;
+
+    final systemChat = {"id": "system:$agentId", "type": "system"};
+    final event = CryptoUtil.buildEvent(
+      agentId: agentId,
+      chat: systemChat,
+      kind: "acl_allow",
+      content: agentId,
+    );
+
+    final payload = CryptoUtil.canonicalEventPayload(event);
+    final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
+
+    final packet = {
+      "type": "event",
+      "event": event,
+      "sig": sig,
+    };
+
+    _channel!.sink.add(jsonEncode(packet));
+  }
+
   Future<void> deleteFriend(String walletId, String pubKeyHex) async {
     _friends.removeWhere((f) => f.pubKeyHex == pubKeyHex);
     await _saveFriends(walletId);
