@@ -24,8 +24,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Security Verification'),
+        title: const Text('Security Verification', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,25 +53,38 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             ),
           ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(
-            onPressed: () {
-              _passwordController.clear();
-              Navigator.pop(context);
-            },
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final password = _passwordController.text;
-              Navigator.pop(context);
-              _decryptAndShow(password);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A1A1A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Verify'),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    _passwordController.clear();
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final password = _passwordController.text;
+                    Navigator.pop(context);
+                    _decryptAndShow(password);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Verify', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -117,28 +132,43 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Delete Wallet?'),
+        title: const Text('Delete Wallet?', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text(
           'This action cannot be undone. Make sure you have backed up your private key.',
           style: TextStyle(color: Colors.black54),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Provider.of<WalletProvider>(context, listen: false).deleteWallet(widget.wallet.id);
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Back to wallet list
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Provider.of<WalletProvider>(context, listen: false).deleteWallet(widget.wallet.id);
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Back to wallet list
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -205,7 +235,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     style: TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   const Text(
-                    'ED25519 (Cryptography)',
+                    'Agent Str Main Network ',
                     style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                 ],

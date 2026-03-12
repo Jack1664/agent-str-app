@@ -53,6 +53,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: const Row(
           children: [
@@ -83,38 +84,56 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
             ),
           ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _isAuthDialogOpen = false;
-              chatProvider.disconnect();
-            },
-            child: const Text('Disconnect', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final seed = CryptoUtil.decryptSeed(wallet.encryptedBase64Seed, password);
-              if (seed != null) {
-                Navigator.pop(context);
-                final success = await chatProvider.authenticateWithSeed(seed, password);
-                _isAuthDialogOpen = false;
-                if (!success && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Authentication failed'), behavior: SnackBarBehavior.floating),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invalid password'), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            child: const Text('Authenticate'),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _isAuthDialogOpen = false;
+                    chatProvider.disconnect();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey.shade300),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Disconnect', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final seed = CryptoUtil.decryptSeed(wallet.encryptedBase64Seed, password);
+                    if (seed != null) {
+                      Navigator.pop(context);
+                      final success = await chatProvider.authenticateWithSeed(seed, password);
+                      _isAuthDialogOpen = false;
+                      if (!success && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Authentication failed'), behavior: SnackBarBehavior.floating),
+                        );
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Invalid password'), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00D1C1),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Authenticate', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -141,12 +160,13 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           scale: anim1,
           child: AlertDialog(
             backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            title: Row(
+            title: const Row(
               children: [
-                const Icon(Icons.cloud_outlined, color: Color(0xFF00D1C1)),
+                Icon(Icons.cloud_outlined, color: Color(0xFF00D1C1)),
                 const SizedBox(width: 12),
-                const Text('Connect Relay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Connect Relay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             content: Column(
@@ -170,22 +190,35 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                 ),
               ],
             ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
-                  Provider.of<ChatProvider>(context, listen: false).connect(_urlController.text, wallet);
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: const Text('Connect'),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
+                        Provider.of<ChatProvider>(context, listen: false).connect(_urlController.text, wallet);
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A1A1A),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Connect', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -200,6 +233,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         title: const Text('Add Contact', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
@@ -238,22 +272,38 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
             ),
           ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
-          ElevatedButton(
-            onPressed: () {
-              if (aliasController.text.isNotEmpty) {
-                final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
-                Provider.of<ChatProvider>(context, listen: false).addFriend(walletId, pubKeyHex, aliasController.text);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Friend added to Contacts'), behavior: SnackBarBehavior.floating),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Save'),
-          )
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (aliasController.text.isNotEmpty) {
+                      final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
+                      Provider.of<ChatProvider>(context, listen: false).addFriend(walletId, pubKeyHex, aliasController.text);
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Friend added to Contacts'), behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00D1C1),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -484,15 +534,27 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Delete Contact?'),
         content: Text('Are you sure you want to remove $alias from your friends?'),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
