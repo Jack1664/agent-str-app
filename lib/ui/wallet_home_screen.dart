@@ -437,16 +437,65 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                 );
               }
             },
-            trailing: IconButton(
-              icon: Icon(friend.isBlacklisted ? Icons.block : Icons.more_vert_rounded, size: 20),
-              onPressed: () {
+            trailing: PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              onSelected: (value) async {
                 final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
-                chatProvider.toggleBlacklist(walletId, friend.pubKeyHex);
+                if (value == 'delete') {
+                  final confirm = await _showDeleteConfirm(friend.alias);
+                  if (confirm == true) {
+                    chatProvider.deleteFriend(walletId, friend.pubKeyHex);
+                  }
+                } else if (value == 'blacklist') {
+                  chatProvider.toggleBlacklist(walletId, friend.pubKeyHex);
+                }
               },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'blacklist',
+                  child: Row(
+                    children: [
+                      Icon(Icons.block_flipped, size: 20, color: Colors.orange),
+                      SizedBox(width: 12),
+                      Text('Blacklist'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                      SizedBox(width: 12),
+                      Text('Delete', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Future<bool?> _showDeleteConfirm(String alias) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Delete Contact?'),
+        content: Text('Are you sure you want to remove $alias from your friends?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 

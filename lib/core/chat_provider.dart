@@ -150,6 +150,13 @@ class ChatProvider with ChangeNotifier {
         isMine: sender == activeWallet.agentId,
       );
 
+      // Check blacklist
+      final friend = _friends.firstWhere(
+        (f) => f.pubKeyHex == sender,
+        orElse: () => Friend(pubKeyHex: sender, alias: 'Unknown'),
+      );
+      if (friend.isBlacklisted) return;
+
       final chatId = event['chat']['id'];
       String peerId = sender;
       if (sender == activeWallet.agentId) {
@@ -240,6 +247,12 @@ class ChatProvider with ChangeNotifier {
       await _saveFriends(walletId);
       notifyListeners();
     }
+  }
+
+  Future<void> deleteFriend(String walletId, String pubKeyHex) async {
+    _friends.removeWhere((f) => f.pubKeyHex == pubKeyHex);
+    await _saveFriends(walletId);
+    notifyListeners();
   }
 
   Future<void> toggleBlacklist(String walletId, String pubKeyHex) async {
