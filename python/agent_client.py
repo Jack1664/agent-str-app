@@ -249,8 +249,6 @@ async def run(
     blacklist_agent = normalize_agent_id(blacklist_agent) if blacklist_agent else ""
     unblacklist_agent = normalize_agent_id(unblacklist_agent) if unblacklist_agent else ""
     url = base_ws.rstrip('/')
-    if not url.endswith("/ws/agent"):
-        url = f"{url}/ws/agent"
     print(f"agent_id={agent_id}")
     print(f"agent_address={agent_address}")
     print(f"connecting to {url}")

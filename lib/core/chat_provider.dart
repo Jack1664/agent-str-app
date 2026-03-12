@@ -64,10 +64,6 @@ class ChatProvider with ChangeNotifier {
     while (targetUrl.endsWith('/')) {
       targetUrl = targetUrl.substring(0, targetUrl.length - 1);
     }
-    if (!targetUrl.endsWith('/ws/agent')) {
-      targetUrl = "$targetUrl/ws/agent";
-    }
-
     _lastUsedUrl = targetUrl;
     _lastUsedWallet = activeWallet;
     _isConnecting = true;
