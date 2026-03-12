@@ -148,6 +148,79 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     }
   }
 
+  void _showConnectionStatus(ChatProvider chatProvider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline_rounded, color: Color(0xFF00D1C1)),
+            SizedBox(width: 12),
+            Text('Relay Status', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStatusItem('Status', chatProvider.isConnected ? (chatProvider.isAuthenticated ? 'Connected & Verified' : 'Connected (Pending Auth)') : 'Disconnected',
+              color: chatProvider.isAuthenticated ? Colors.green : (chatProvider.isConnected ? Colors.orange : Colors.red)),
+            const SizedBox(height: 16),
+            _buildStatusItem('Relay URL', chatProvider.lastUsedUrl ?? 'N/A'),
+            if (chatProvider.isAuthenticated) ...[
+              const SizedBox(height: 16),
+              _buildStatusItem('Active Agent', '${chatProvider.lastUsedWallet?.agentId.substring(0, 16)}...'),
+            ]
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    chatProvider.disconnect();
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Disconnect', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusItem(String label, String value, {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: color ?? const Color(0xFF1A1A1A))),
+      ],
+    );
+  }
+
   void _connectRelay() {
     showGeneralDialog(
       context: context,
@@ -205,7 +278,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
-                        Provider.of<ChatProvider>(context, listen: false).connect(_urlController.text, wallet);
+                        Provider.of<ChatProvider>(context, listen: false).connect(_urlController.text.trim(), wallet);
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
@@ -333,19 +406,27 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              chatProvider.isConnected ? (chatProvider.isAuthenticated ? Icons.cloud_done : Icons.cloud_queue) : Icons.cloud_off,
-              color: chatProvider.isAuthenticated ? const Color(0xFF00D1C1) : (chatProvider.isConnected ? Colors.orange : Colors.grey),
+          if (chatProvider.isConnecting)
+            const Padding(
+              padding: EdgeInsets.all(12.0),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00D1C1))),
+            )
+          else
+            IconButton(
+              icon: Icon(
+                chatProvider.isConnected ? (chatProvider.isAuthenticated ? Icons.cloud_done : Icons.cloud_queue) : Icons.cloud_off,
+                color: chatProvider.isAuthenticated ? const Color(0xFF00D1C1) : (chatProvider.isConnected ? Colors.orange : Colors.grey),
+              ),
+              onPressed: chatProvider.isConnected ? () => _showConnectionStatus(chatProvider) : _connectRelay,
             ),
-            onPressed: chatProvider.isConnected ? () => chatProvider.disconnect() : _connectRelay,
-          ),
           const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
-          if (!chatProvider.isConnected)
+          if (chatProvider.isConnecting)
+            LinearProgressIndicator(backgroundColor: Colors.transparent, color: const Color(0xFF00D1C1).withOpacity(0.5)),
+          if (!chatProvider.isConnected && !chatProvider.isConnecting)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),

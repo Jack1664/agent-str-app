@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 import 'package:hex/hex.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -17,6 +19,7 @@ class ChatProvider with ChangeNotifier {
   WebSocketChannel? _channel;
   bool _isConnected = false;
   bool _isAuthenticated = false;
+  bool _isConnecting = false;
 
   List<String> _topics = [];
   List<Friend> _friends = [];
@@ -26,12 +29,22 @@ class ChatProvider with ChangeNotifier {
   Map<String, dynamic>? _lastChallenge;
   Completer<bool>? _authCompleter;
   ed.PrivateKey? _activePrivateKey;
-  String? _tempPassword; // Cache password temporarily for the session
+  String? _tempPassword;
+
+  // Connection management
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  String? _lastUsedUrl;
+  Wallet? _lastUsedWallet;
 
   bool get isConnected => _isConnected;
   bool get isAuthenticated => _isAuthenticated;
+  bool get isConnecting => _isConnecting;
   bool get isAuthPending => _lastChallenge != null && !_isAuthenticated;
   Map<String, dynamic>? get lastChallenge => _lastChallenge;
+
+  String? get lastUsedUrl => _lastUsedUrl;
+  Wallet? get lastUsedWallet => _lastUsedWallet;
 
   ed.PrivateKey? get activePrivateKey => _activePrivateKey;
   String? get tempPassword => _tempPassword;
@@ -44,22 +57,56 @@ class ChatProvider with ChangeNotifier {
   static const String _friendsKeyPrefix = 'friends_';
 
   Future<void> connect(String url, Wallet activeWallet) async {
+    if (_isConnecting) return;
+
+    // Normalize URL
+    String targetUrl = url.trim();
+    while (targetUrl.endsWith('/')) {
+      targetUrl = targetUrl.substring(0, targetUrl.length - 1);
+    }
+    if (!targetUrl.endsWith('/ws/agent')) {
+      targetUrl = "$targetUrl/ws/agent";
+    }
+
+    _lastUsedUrl = targetUrl;
+    _lastUsedWallet = activeWallet;
+    _isConnecting = true;
+    _isConnected = false;
+    _isAuthenticated = false;
+    notifyListeners();
+
     try {
-      final uri = Uri.parse(url);
-      _channel = WebSocketChannel.connect(uri);
+      debugPrint("Attempting connection to: $targetUrl");
+
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 10)
+        ..badCertificateCallback = (cert, host, port) => true;
+
+      final WebSocket webSocket = await WebSocket.connect(
+        targetUrl,
+        customClient: client,
+      ).timeout(const Duration(seconds: 15));
+
+      _channel = IOWebSocketChannel(webSocket);
+
       _isConnected = true;
-      _isAuthenticated = false;
+      _isConnecting = false;
+      _reconnectAttempts = 0;
       _lastChallenge = null;
       notifyListeners();
 
-      Fluttertoast.showToast(msg: "Connecting to Relay...", backgroundColor: Colors.blueGrey);
+      Fluttertoast.showToast(msg: "Connected to Relay", backgroundColor: Colors.green);
 
       _channel!.stream.listen((rawData) {
+        debugPrint("WS Received: $rawData");
         _handleRawMessage(rawData, activeWallet);
       }, onDone: () {
-        _handleDisconnect("Disconnected from Relay");
+        _handleDisconnect("Relay connection closed");
+        _scheduleReconnect();
       }, onError: (e) {
-        _handleDisconnect("Connection Error: $e");
+        debugPrint("WS Stream Error: $e");
+        _handleDisconnect("Network Error: $e");
+        _scheduleReconnect();
       });
 
       final prefs = await SharedPreferences.getInstance();
@@ -67,8 +114,26 @@ class ChatProvider with ChangeNotifier {
       await loadFriends(activeWallet.id);
 
     } catch (e) {
-      _handleDisconnect("Connection Failed");
+      debugPrint("Connect Failure: $e");
+      _isConnecting = false;
+      _handleDisconnect("Connect Failed: $e");
+      _scheduleReconnect();
     }
+  }
+
+  void _scheduleReconnect() {
+    _reconnectTimer?.cancel();
+    if (_lastUsedUrl == null || _lastUsedWallet == null) return;
+
+    _reconnectAttempts++;
+    int delay = (1 << _reconnectAttempts).clamp(2, 30);
+
+    debugPrint("Reconnecting in $delay seconds...");
+    _reconnectTimer = Timer(Duration(seconds: delay), () {
+      if (!_isConnected && !_isConnecting) {
+        connect(_lastUsedUrl!, _lastUsedWallet!);
+      }
+    });
   }
 
   void _handleRawMessage(dynamic rawData, Wallet activeWallet) {
@@ -79,29 +144,35 @@ class ChatProvider with ChangeNotifier {
       if (type == 'challenge') {
         _lastChallenge = data;
         notifyListeners();
+        if (_activePrivateKey != null) {
+          _autoAuthenticate(activeWallet);
+        }
       } else if (type == 'connected') {
         _isAuthenticated = true;
         _lastChallenge = null;
         _authCompleter?.complete(true);
         _authCompleter = null;
         notifyListeners();
-        Fluttertoast.showToast(
-          msg: "Authenticated Successfully ✅",
-          backgroundColor: Colors.green,
-          textColor: Colors.white,
-        );
+      } else if (type == 'pong') {
+        // Heartbeat OK
       } else if (type == 'deliver') {
         _handleDeliver(data, activeWallet);
-      } else if (type == 'ack') {
-        debugPrint("Server acknowledged event: ${data['id']}");
       } else if (type == 'error') {
         _authCompleter?.complete(false);
         _authCompleter = null;
-        Fluttertoast.showToast(msg: "Relay Error: ${data['message'] ?? data}");
+        Fluttertoast.showToast(msg: "Relay: ${data['message'] ?? data}");
       }
     } catch (e) {
-      debugPrint('Error parsing message: $rawData - Error: $e');
+      debugPrint('Msg Parse Error: $e');
     }
+  }
+
+  Future<void> _autoAuthenticate(Wallet activeWallet) async {
+    if (_activePrivateKey == null || _lastChallenge == null) return;
+    final challengeStr = "AUTH|${_lastChallenge!['nonce']}|${_lastChallenge!['ts']}";
+    final sig = CryptoUtil.signB64(_activePrivateKey!, challengeStr);
+    final authPacket = {"type": "auth", "agent_id": activeWallet.agentId, "sig": sig};
+    _channel!.sink.add(jsonEncode(authPacket));
   }
 
   Future<bool> authenticateWithSeed(Uint8List seed, String password) async {
@@ -109,7 +180,7 @@ class ChatProvider with ChangeNotifier {
 
     final keyPair = CryptoUtil.deriveKeyPair(seed);
     _activePrivateKey = keyPair.privateKey;
-    _tempPassword = password; // Set temp password cache
+    _tempPassword = password;
 
     final challengeStr = "AUTH|${_lastChallenge!['nonce']}|${_lastChallenge!['ts']}";
     final sig = CryptoUtil.signB64(keyPair.privateKey, challengeStr);
@@ -122,7 +193,6 @@ class ChatProvider with ChangeNotifier {
 
     _authCompleter = Completer<bool>();
     _channel!.sink.add(jsonEncode(authPacket));
-
     return _authCompleter!.future;
   }
 
@@ -134,10 +204,7 @@ class ChatProvider with ChangeNotifier {
     final payload = CryptoUtil.canonicalEventPayload(event);
     final isValid = CryptoUtil.verifySignature(payload, sig, sender);
 
-    if (!isValid) {
-      debugPrint("Invalid signature from $sender. Rejecting.");
-      return;
-    }
+    if (!isValid) return;
 
     _sendAck(activeWallet.agentId, event);
 
@@ -150,7 +217,6 @@ class ChatProvider with ChangeNotifier {
         isMine: sender == activeWallet.agentId,
       );
 
-      // Check blacklist
       final friend = _friends.firstWhere(
         (f) => f.pubKeyHex == sender,
         orElse: () => Friend(pubKeyHex: sender, alias: 'Unknown'),
@@ -166,9 +232,7 @@ class ChatProvider with ChangeNotifier {
         }
       }
 
-      if (!_messages.containsKey(peerId)) {
-        _messages[peerId] = [];
-      }
+      if (!_messages.containsKey(peerId)) _messages[peerId] = [];
       _messages[peerId]!.add(msg);
       notifyListeners();
     }
@@ -176,33 +240,25 @@ class ChatProvider with ChangeNotifier {
 
   void _sendAck(String agentId, Map<String, dynamic> sourceEvent) {
     if (_activePrivateKey == null) return;
-
     final ackEvent = CryptoUtil.buildEvent(
       agentId: agentId,
       chat: sourceEvent['chat'],
       kind: "ack",
       content: sourceEvent['id'],
     );
-
     final payload = CryptoUtil.canonicalEventPayload(ackEvent);
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
-
-    final packet = {
-      "type": "event",
-      "event": ackEvent,
-      "sig": sig,
-    };
-
+    final packet = {"type": "event", "event": ackEvent, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
   }
 
   Future<void> autoConnect(Wallet activeWallet) async {
+    _lastUsedWallet = activeWallet;
     await loadFriends(activeWallet.id);
     if (_isConnected) return;
 
     final prefs = await SharedPreferences.getInstance();
     final savedUrl = prefs.getString('${_relayUrlKeyPrefix}${activeWallet.id}');
-
     if (savedUrl != null && savedUrl.isNotEmpty) {
       await connect(savedUrl, activeWallet);
     }
@@ -214,8 +270,6 @@ class ChatProvider with ChangeNotifier {
     if (friendsJson != null) {
       final List<dynamic> decoded = jsonDecode(friendsJson);
       _friends = decoded.map((e) => Friend.fromJson(e)).toList();
-    } else {
-      _friends = [];
     }
     notifyListeners();
   }
@@ -229,16 +283,18 @@ class ChatProvider with ChangeNotifier {
   void _handleDisconnect(String message) {
     _isConnected = false;
     _isAuthenticated = false;
-    _lastChallenge = null;
+    _isConnecting = false;
     notifyListeners();
-    Fluttertoast.showToast(msg: message, backgroundColor: Colors.redAccent);
+    debugPrint("Disconnected: $message");
   }
 
   void disconnect() {
+    _lastUsedUrl = null;
+    _reconnectTimer?.cancel();
     _channel?.sink.close();
-    _handleDisconnect("Manual Disconnect");
+    _handleDisconnect("Manual");
     _activePrivateKey = null;
-    _tempPassword = null; // Clear password
+    _tempPassword = null;
   }
 
   Future<void> addFriend(String walletId, String pubKeyHex, String alias) async {
@@ -249,32 +305,19 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// Corrected allowAgent: Match Python --allow-agent logic
-  /// [agentId]: My own Agent ID
-  /// [friendAgentId]: The Agent ID of the friend I want to authorize
   Future<void> allowAgent(String agentId, String friendAgentId) async {
     if (_activePrivateKey == null || _channel == null) return;
-
     final systemChat = {"id": "system:$agentId", "type": "system"};
-
     final event = CryptoUtil.buildEvent(
-      agentId: agentId, // From: ME
+      agentId: agentId,
       chat: systemChat,
       kind: "acl_allow",
-      content: friendAgentId, // Content: FRIEND
+      content: friendAgentId,
     );
-
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
-
-    final packet = {
-      "type": "event",
-      "event": event,
-      "sig": sig,
-    };
-
+    final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
-    debugPrint("Authorized Agent: $friendAgentId");
   }
 
   Future<void> deleteFriend(String walletId, String pubKeyHex) async {
@@ -295,20 +338,12 @@ class ChatProvider with ChangeNotifier {
   void sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId) {
     if (!_isAuthenticated || _channel == null) return;
     _activePrivateKey = privateKey;
-
     final chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");
     final event = CryptoUtil.buildEvent(agentId: agentId, chat: chat, kind: "message", content: content);
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(privateKey, payload);
-
-    final packet = {
-      "type": "event",
-      "event": event,
-      "sig": sig,
-    };
-
+    final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
-
     final msg = ChatMessage(
       content: content,
       signature: sig,
@@ -316,10 +351,7 @@ class ChatProvider with ChangeNotifier {
       timestamp: event['created_at'] * 1000,
       isMine: true,
     );
-
-    if (!_messages.containsKey(peerId)) {
-      _messages[peerId] = [];
-    }
+    if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();
   }
