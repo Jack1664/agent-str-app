@@ -16,6 +16,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
@@ -24,20 +25,25 @@ class _ChatScreenState extends State<ChatScreen> {
     final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-    // Prompt for password to decrypt seed to sign message
     final password = await _promptPassword(context);
     if (password == null || !mounted) return;
 
     final seed = CryptoUtil.decryptSeed(wallet.encryptedBase64Seed, password);
     if (seed == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid Password!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Invalid Password!'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
       }
       return;
     }
 
     final keyPair = CryptoUtil.deriveKeyPair(seed);
-
     chatProvider.sendMessage(text, keyPair.privateKey, wallet.agentId, widget.friend.pubKeyHex);
     _messageController.clear();
   }
@@ -48,19 +54,40 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Unlock Wallet to Sign'),
-          content: TextField(
-            obscureText: true,
-            onChanged: (v) => psw = v,
-            decoration: const InputDecoration(labelText: 'Password'),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          title: const Text('Confirm Identity', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Enter your password to sign this message with your private key.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 20),
+              TextField(
+                obscureText: true,
+                autofocus: true,
+                onChanged: (v) => psw = v,
+                decoration: InputDecoration(
+                  labelText: 'Wallet Password',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, null),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, psw),
+              style: ElevatedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
               child: const Text('Sign & Send'),
             ),
           ],
@@ -73,69 +100,171 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
     final messages = chatProvider.messages[widget.friend.pubKeyHex] ?? [];
-    
+    final char = widget.friend.alias.isNotEmpty ? widget.friend.alias[0].toUpperCase() : '?';
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
-        title: Text(widget.friend.alias),
-        backgroundColor: Colors.indigo.shade800,
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
+              child: Text(char, style: const TextStyle(color: Color(0xFF00D1C1), fontSize: 14, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.friend.alias, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    '${widget.friend.pubKeyHex.substring(0, 12)}...',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(icon: const Icon(Icons.more_vert, color: Colors.grey), onPressed: () {}),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
-              reverse: true, // Show latest at bottom
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              reverse: true,
               itemCount: messages.length,
               itemBuilder: (context, index) {
-                // Reverse because ListView reverse is true
                 final msg = messages[messages.length - 1 - index];
-                
-                return Align(
-                  alignment: msg.isMine ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: msg.isMine ? Colors.indigo.shade100 : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(msg.content, style: const TextStyle(fontSize: 16)),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Sig: ${msg.signature.substring(0, 16)}...',
-                          style: const TextStyle(fontSize: 10, color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                return _buildMessageBubble(msg);
               },
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(8.0),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16),
+          _buildInputArea(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(dynamic msg) {
+    final bool isMine = msg.isMine;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: Column(
+        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isMine) ...[
+                const SizedBox(width: 4),
+              ],
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isMine ? const Color(0xFF1A1A1A) : Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(isMine ? 20 : 4),
+                      bottomRight: Radius.circular(isMine ? 4 : 20),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: Text(
+                    msg.content,
+                    style: TextStyle(
+                      color: isMine ? Colors.white : const Color(0xFF1A1A1A),
+                      fontSize: 15,
+                      height: 1.4,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                FloatingActionButton(
-                  onPressed: _sendMessage,
-                  child: const Icon(Icons.send),
-                  elevation: 0,
-                ),
+              ),
+              if (isMine) ...[
+                const SizedBox(width: 4),
               ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: EdgeInsets.only(left: isMine ? 0 : 8, right: isMine ? 8 : 0),
+            child: Text(
+              'SIG: ${msg.signature.substring(0, 8)}...',
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade400, fontFamily: 'monospace'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 12,
+        bottom: MediaQuery.of(context).padding.bottom + 12,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF6F8FA),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: _messageController,
+                maxLines: null,
+                decoration: const InputDecoration(
+                  hintText: 'Secure message...',
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: _sendMessage,
+            child: Container(
+              height: 48,
+              width: 48,
+              decoration: const BoxDecoration(
+                color: Color(0xFF00D1C1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 24),
             ),
           ),
         ],

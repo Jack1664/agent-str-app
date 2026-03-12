@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
 import 'chat_screen.dart';
+import 'add_friend_screen.dart';
 
 class WalletHomeScreen extends StatefulWidget {
   const WalletHomeScreen({Key? key}) : super(key: key);
@@ -31,33 +32,65 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
   }
 
   void _connectRelay() {
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text('Connect Relay'),
-          content: TextField(
-            controller: _urlController,
-            decoration: const InputDecoration(
-              labelText: 'Relay WebSocket URL',
-              hintText: 'ws://...',
+      barrierDismissible: true,
+      barrierLabel: '',
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, anim1, anim2) => Container(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: anim1,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            title: Row(
+              children: [
+                const Icon(Icons.cloud_outlined, color: Color(0xFF00D1C1)),
+                const SizedBox(width: 12),
+                const Text('Connect Relay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
             ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Enter the WebSocket URL of your messaging relay.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _urlController,
+                  decoration: InputDecoration(
+                    labelText: 'WebSocket URL',
+                    hintText: 'ws://...',
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.link, size: 20),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
+                  Provider.of<ChatProvider>(context, listen: false).connect(_urlController.text, wallet);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Connect'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
-                Provider.of<ChatProvider>(context, listen: false).connect(_urlController.text, wallet);
-                Navigator.pop(context);
-              },
-              child: const Text('Connect'),
-            ),
-          ],
         );
       },
     );
@@ -68,33 +101,60 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Add Friend'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: const Text('Add Contact', style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('PubKey: ${pubKeyHex.substring(0, 16)}...', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.vpn_key_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${pubKeyHex.substring(0, 16)}...',
+                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Colors.black54),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             TextField(
               controller: aliasController,
-              decoration: const InputDecoration(labelText: 'Alias / Name'),
+              decoration: InputDecoration(
+                labelText: 'Alias / Name',
+                hintText: 'How should we call them?',
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () {
               if (aliasController.text.isNotEmpty) {
-                Provider.of<ChatProvider>(context, listen: false).addFriend(pubKeyHex, aliasController.text);
+                final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
+                Provider.of<ChatProvider>(context, listen: false).addFriend(walletId, pubKeyHex, aliasController.text);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${aliasController.text} added to Friends')),
+                  const SnackBar(content: Text('Friend added to Contacts'), behavior: SnackBarBehavior.floating),
                 );
               }
             },
-            child: const Text('Add'),
+            style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text('Save'),
           )
         ],
       ),
@@ -206,6 +266,13 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddFriendScreen()));
+        },
+        backgroundColor: const Color(0xFF1A1A1A),
+        child: const Icon(Icons.person_add_rounded, color: Colors.white),
+      ),
     );
   }
 
@@ -228,6 +295,8 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final friend = chatProvider.friends[index];
+        final char = friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : (friend.pubKeyHex.isNotEmpty ? friend.pubKeyHex[0].toUpperCase() : '?');
+
         return Container(
           decoration: BoxDecoration(
             color: const Color(0xFFF6F8FA),
@@ -236,10 +305,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             leading: CircleAvatar(
-              backgroundColor: friend.isBlacklisted ? Colors.red.shade100 : const Color(0xFF00D1C1).withOpacity(0.1),
-              child: Icon(
-                Icons.person,
-                color: friend.isBlacklisted ? Colors.red : const Color(0xFF00D1C1),
+              backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
+              child: Text(
+                char,
+                style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold),
               ),
             ),
             title: Text(friend.alias, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -256,7 +325,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
             },
             trailing: IconButton(
               icon: Icon(friend.isBlacklisted ? Icons.block : Icons.more_vert_rounded, size: 20),
-              onPressed: () => chatProvider.toggleBlacklist(friend.pubKeyHex),
+              onPressed: () {
+                final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
+                chatProvider.toggleBlacklist(walletId, friend.pubKeyHex);
+              },
             ),
           ),
         );

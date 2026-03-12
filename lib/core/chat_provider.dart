@@ -26,6 +26,7 @@ class ChatProvider with ChangeNotifier {
   Map<String, List<ChatMessage>> get messages => _messages;
 
   static const String _relayUrlKeyPrefix = 'relay_url_';
+  static const String _friendsKeyPrefix = 'friends_';
 
   Future<void> connect(String url, Wallet activeWallet) async {
     try {
@@ -36,6 +37,10 @@ class ChatProvider with ChangeNotifier {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('${_relayUrlKeyPrefix}${activeWallet.id}', url);
+
+      // Load friends for this specific wallet identity if needed,
+      // but usually friends are global or per-wallet. Let's make them per-wallet for better privacy.
+      await loadFriends(activeWallet.id);
 
       Fluttertoast.showToast(
         msg: "Connected to Relay",
@@ -58,6 +63,7 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> autoConnect(Wallet activeWallet) async {
+    await loadFriends(activeWallet.id);
     if (_isConnected) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -66,6 +72,24 @@ class ChatProvider with ChangeNotifier {
     if (savedUrl != null && savedUrl.isNotEmpty) {
       await connect(savedUrl, activeWallet);
     }
+  }
+
+  Future<void> loadFriends(String walletId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? friendsJson = prefs.getString('${_friendsKeyPrefix}$walletId');
+    if (friendsJson != null) {
+      final List<dynamic> decoded = jsonDecode(friendsJson);
+      _friends = decoded.map((e) => Friend.fromJson(e)).toList();
+    } else {
+      _friends = [];
+    }
+    notifyListeners();
+  }
+
+  Future<void> _saveFriends(String walletId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(_friends.map((e) => e.toJson()).toList());
+    await prefs.setString('${_friendsKeyPrefix}$walletId', encoded);
   }
 
   void _handleDisconnect(String message) {
@@ -93,7 +117,7 @@ class ChatProvider with ChangeNotifier {
 
       if (type == 'topics') {
         _topics = List<String>.from(data['topics'] ?? []);
-        _topics.remove(activeWallet.agentId); // Using agentId instead of publicKeyHex
+        _topics.remove(activeWallet.agentId);
         notifyListeners();
       } else if (type == 'challenge') {
         final nonce = data['nonce'];
@@ -141,17 +165,25 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  void addFriend(String pubKeyHex, String alias) {
+  Future<void> addFriend(String walletId, String pubKeyHex, String alias) async {
     if (!_friends.any((f) => f.pubKeyHex == pubKeyHex)) {
       _friends.add(Friend(pubKeyHex: pubKeyHex, alias: alias));
+      await _saveFriends(walletId);
       notifyListeners();
     }
   }
 
-  void toggleBlacklist(String pubKeyHex) {
+  Future<void> deleteFriend(String walletId, String pubKeyHex) async {
+    _friends.removeWhere((f) => f.pubKeyHex == pubKeyHex);
+    await _saveFriends(walletId);
+    notifyListeners();
+  }
+
+  Future<void> toggleBlacklist(String walletId, String pubKeyHex) async {
     final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
     if (index != -1) {
       _friends[index].isBlacklisted = !_friends[index].isBlacklisted;
+      await _saveFriends(walletId);
       notifyListeners();
     }
   }
