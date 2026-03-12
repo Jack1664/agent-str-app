@@ -249,15 +249,19 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  Future<void> allowAgent(String walletId, String agentId) async {
-    if (_activePrivateKey == null) return;
+  /// Corrected allowAgent: Match Python --allow-agent logic
+  /// [agentId]: My own Agent ID
+  /// [friendAgentId]: The Agent ID of the friend I want to authorize
+  Future<void> allowAgent(String agentId, String friendAgentId) async {
+    if (_activePrivateKey == null || _channel == null) return;
 
     final systemChat = {"id": "system:$agentId", "type": "system"};
+
     final event = CryptoUtil.buildEvent(
-      agentId: agentId,
+      agentId: agentId, // From: ME
       chat: systemChat,
       kind: "acl_allow",
-      content: agentId,
+      content: friendAgentId, // Content: FRIEND
     );
 
     final payload = CryptoUtil.canonicalEventPayload(event);
@@ -270,6 +274,7 @@ class ChatProvider with ChangeNotifier {
     };
 
     _channel!.sink.add(jsonEncode(packet));
+    debugPrint("Authorized Agent: $friendAgentId");
   }
 
   Future<void> deleteFriend(String walletId, String pubKeyHex) async {

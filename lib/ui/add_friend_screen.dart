@@ -22,16 +22,25 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
       final activeWallet = walletProvider.activeWallet;
 
       if (activeWallet != null) {
+        final friendAgentId = _idController.text.trim();
+        // 1. Save locally using wallet UUID for indexing
         await chatProvider.addFriend(
           activeWallet.id,
-          _idController.text.trim(),
+          friendAgentId,
           _aliasController.text.trim(),
         );
+
+        // 2. Authorize on Relay using Agent ID (Public Key Hex)
+        if (chatProvider.isAuthenticated) {
+          // Corrected: Use activeWallet.agentId instead of activeWallet.id
+          await chatProvider.allowAgent(activeWallet.agentId, friendAgentId);
+        }
+
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Friend added successfully'),
+              content: const Text('Friend added and authorized successfully'),
               behavior: SnackBarBehavior.floating,
               backgroundColor: const Color(0xFF00D1C1),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -134,7 +143,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                     shadowColor: Colors.black26,
                   ),
                   child: const Text(
-                    'Save to Contact List',
+                    'Save & Authorize Contact',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
