@@ -13,6 +13,7 @@ class AddFriendScreen extends StatefulWidget {
 class _AddFriendScreenState extends State<AddFriendScreen> {
   final _idController = TextEditingController();
   final _aliasController = TextEditingController();
+  final _messageController = TextEditingController(text: "Hi, I'd like to add you as a friend");
   final _formKey = GlobalKey<FormState>();
 
   void _submit() async {
@@ -23,6 +24,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
 
       if (activeWallet != null) {
         final friendAgentId = _idController.text.trim();
+        final requestMessage = _messageController.text.trim();
+
         // 1. Save locally using wallet UUID for indexing
         await chatProvider.addFriend(
           activeWallet.id,
@@ -34,13 +37,22 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         if (chatProvider.isAuthenticated) {
           // Corrected: Use activeWallet.agentId instead of activeWallet.id
           await chatProvider.allowAgent(activeWallet.agentId, friendAgentId);
+
+          // 3. Send friend request message
+          if (requestMessage.isNotEmpty) {
+            await chatProvider.sendFriendRequest(
+              activeWallet.agentId,
+              friendAgentId,
+              requestMessage,
+            );
+          }
         }
 
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Friend added and authorized successfully'),
+              content: const Text('Friend request sent and authorized'),
               behavior: SnackBarBehavior.floating,
               backgroundColor: const Color(0xFF00D1C1),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -131,6 +143,30 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                   validator: (v) => v == null || v.isEmpty ? 'Alias is required' : null,
                 ),
 
+                const SizedBox(height: 24),
+
+                // Request Message Input
+                _buildInputLabel('REQUEST MESSAGE'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _messageController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'Say something to introduce yourself...',
+                    prefixIcon: const Icon(Icons.chat_bubble_outline, size: 20),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: Color(0xFF00D1C1), width: 1.5),
+                    ),
+                  ),
+                ),
+
                 const SizedBox(height: 48),
 
                 ElevatedButton(
@@ -143,7 +179,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                     shadowColor: Colors.black26,
                   ),
                   child: const Text(
-                    'Save & Authorize Contact',
+                    'Send Request & Save',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),

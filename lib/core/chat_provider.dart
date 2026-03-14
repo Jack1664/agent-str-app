@@ -204,7 +204,7 @@ class ChatProvider with ChangeNotifier {
 
     _sendAck(activeWallet.agentId, event);
 
-    if (event['kind'] == 'message') {
+    if (event['kind'] == 'message' || event['kind'] == 'friend_request') {
       final msg = ChatMessage(
         content: event['content'],
         signature: sig ?? '',
@@ -329,6 +329,37 @@ class ChatProvider with ChangeNotifier {
       await _saveFriends(walletId);
       notifyListeners();
     }
+  }
+
+  Future<void> sendFriendRequest(String agentId, String peerId, String content) async {
+    if (!_isAuthenticated || _channel == null || _activePrivateKey == null) return;
+
+    final chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");
+    final event = CryptoUtil.buildEvent(
+      agentId: agentId,
+      chat: chat,
+      kind: "friend_request",
+      content: content
+    );
+
+    final payload = CryptoUtil.canonicalEventPayload(event);
+    final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
+    final packet = {"type": "event", "event": event, "sig": sig};
+
+    _channel!.sink.add(jsonEncode(packet));
+
+    // Also save to local message history so the user sees they sent a request
+    final msg = ChatMessage(
+      content: content,
+      signature: sig,
+      senderPubKeyHex: agentId,
+      timestamp: event['created_at'] * 1000,
+      isMine: true,
+    );
+
+    if (!_messages.containsKey(peerId)) _messages[peerId] = [];
+    _messages[peerId]!.add(msg);
+    notifyListeners();
   }
 
   void sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId) {
