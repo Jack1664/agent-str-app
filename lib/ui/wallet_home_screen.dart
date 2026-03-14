@@ -525,7 +525,14 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
 
   Widget _buildFriendsTab(ChatProvider chatProvider, Wallet activeWallet) {
     final pending = chatProvider.pendingRequests;
-    final friends = chatProvider.friends;
+    final friends = [...chatProvider.friends];
+
+    // 置顶排序逻辑
+    friends.sort((a, b) {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return 0;
+    });
 
     if (pending.isEmpty && friends.isEmpty) {
       return Center(
@@ -618,17 +625,32 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F8FA),
+        color: friend.isPinned ? const Color(0xFF00D1C1).withOpacity(0.03) : const Color(0xFFF6F8FA),
         borderRadius: BorderRadius.circular(20),
+        border: friend.isPinned ? Border.all(color: const Color(0xFF00D1C1).withOpacity(0.1)) : null,
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: CircleAvatar(
-          backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
-          child: Text(
-            char,
-            style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold),
-          ),
+        leading: Stack(
+          children: [
+            CircleAvatar(
+              backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
+              child: Text(
+                char,
+                style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (friend.isPinned)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(color: Color(0xFF00D1C1), shape: BoxShape.circle),
+                  child: const Icon(Icons.push_pin_rounded, size: 10, color: Colors.white),
+                ),
+              ),
+          ],
         ),
         title: Text(friend.alias, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
@@ -654,9 +676,21 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               }
             } else if (value == 'blacklist') {
               chatProvider.toggleBlacklist(walletId, friend.pubKeyHex);
+            } else if (value == 'pin') {
+              chatProvider.toggleFriendPin(walletId, friend.pubKeyHex);
             }
           },
           itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'pin',
+              child: Row(
+                children: [
+                  Icon(friend.isPinned ? Icons.push_pin_outlined : Icons.push_pin, size: 20, color: Colors.blue),
+                  const SizedBox(width: 12),
+                  Text(friend.isPinned ? 'Unpin' : 'Pin to Top'),
+                ],
+              ),
+            ),
             const PopupMenuItem(
               value: 'blacklist',
               child: Row(

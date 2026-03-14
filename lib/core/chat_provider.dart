@@ -356,6 +356,26 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  /// 修改好友备注
+  Future<void> updateFriendAlias(String walletId, String pubKeyHex, String newAlias) async {
+    final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
+    if (index != -1) {
+      _friends[index].alias = newAlias;
+      await _saveFriends(walletId);
+      notifyListeners();
+    }
+  }
+
+  /// 置顶/取消置顶好友
+  Future<void> toggleFriendPin(String walletId, String pubKeyHex) async {
+    final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
+    if (index != -1) {
+      _friends[index].isPinned = !_friends[index].isPinned;
+      await _saveFriends(walletId);
+      notifyListeners();
+    }
+  }
+
   /// 在服务器端授权指定的 Agent 发送消息 (ACL Allow)
   Future<void> allowAgent(String agentId, String friendAgentId) async {
     if (_activePrivateKey == null || _channel == null) return;

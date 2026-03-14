@@ -4,6 +4,7 @@ import '../core/chat_provider.dart';
 import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
 import '../models/friend.dart';
+import 'friend_info_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final Friend friend;
@@ -106,8 +107,15 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
-    final messages = chatProvider.messages[widget.friend.pubKeyHex] ?? [];
-    final char = widget.friend.alias.isNotEmpty ? widget.friend.alias[0].toUpperCase() : '?';
+
+    // 实时获取最新的好友对象（防止在详情页修改后没同步）
+    final friend = chatProvider.friends.firstWhere(
+      (f) => f.pubKeyHex == widget.friend.pubKeyHex,
+      orElse: () => widget.friend,
+    );
+
+    final messages = chatProvider.messages[friend.pubKeyHex] ?? [];
+    final char = friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
@@ -127,9 +135,9 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.friend.alias, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(friend.alias, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   Text(
-                    '${widget.friend.pubKeyHex.substring(0, 12)}...',
+                    '${friend.pubKeyHex.substring(0, 12)}...',
                     style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontFamily: 'monospace'),
                   ),
                 ],
@@ -138,7 +146,15 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.more_vert, color: Colors.grey), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.grey),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => FriendInfoScreen(friend: friend)),
+              );
+            },
+          ),
           const SizedBox(width: 8),
         ],
       ),
