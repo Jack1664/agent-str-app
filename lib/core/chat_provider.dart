@@ -32,14 +32,27 @@ class FriendRequest {
 class TopicInfo {
   final String id;
   final String title;
+  String alias; // 用户自定义的话题别名
   bool isSubscribed;
 
-  TopicInfo({required this.id, required this.title, this.isSubscribed = false});
+  TopicInfo({
+    required this.id,
+    required this.title,
+    String? alias,
+    this.isSubscribed = false
+  }) : this.alias = alias ?? title;
 
-  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'isSubscribed': isSubscribed};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'alias': alias,
+    'isSubscribed': isSubscribed
+  };
+
   factory TopicInfo.fromJson(Map<String, dynamic> json) => TopicInfo(
     id: json['id'],
     title: json['title'],
+    alias: json['alias'],
     isSubscribed: json['isSubscribed'] ?? false,
   );
 }
@@ -455,7 +468,7 @@ class ChatProvider with ChangeNotifier {
 
   // --- 话题 (Topics) 管理 ---
 
-  Future<void> subscribeTopic(String walletId, String agentId, String topicName) async {
+  Future<void> subscribeTopic(String walletId, String agentId, String topicName, {String? alias}) async {
     if (_activePrivateKey == null || _channel == null) return;
 
     final topicChat = {"id": "topic:$topicName", "type": "topic", "title": topicName};
@@ -471,7 +484,12 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(packet));
 
     if (!_myTopics.any((t) => t.title == topicName)) {
-      _myTopics.add(TopicInfo(id: "topic:$topicName", title: topicName, isSubscribed: true));
+      _myTopics.add(TopicInfo(
+        id: "topic:$topicName",
+        title: topicName,
+        alias: alias,
+        isSubscribed: true
+      ));
       await _saveMyTopics(walletId);
       notifyListeners();
     }
