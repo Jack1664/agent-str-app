@@ -8,18 +8,25 @@ import 'dart:typed_data';
 import 'package:bech32/bech32.dart';
 import 'package:uuid/uuid.dart';
 
+/// 加密与加密算法工具类
+/// 包含钱包助记词加解密、Ed25519 签名验证、Bech32 地址转换以及事件规范化逻辑
 class CryptoUtil {
+
+  /// 生成随机的 32 字节种子 (Seed)
   static Uint8List generateSeed() {
     final random = Random.secure();
     return Uint8List.fromList(List<int>.generate(32, (i) => random.nextInt(256)));
   }
 
+  /// 将用户密码转换为 AES 加密所需的 256 位密钥 (SHA-256)
   static Uint8List _passwordToAesKey(String password) {
     final bytes = utf8.encode(password);
     final digest = sha256.convert(bytes);
     return Uint8List.fromList(digest.bytes);
   }
 
+  /// 使用密码加密钱包种子
+  /// 采用 AES-256-CBC 模式，并在结果中包含 16 字节的随机 IV
   static String encryptSeed(Uint8List seed, String password) {
     final aesKey = _passwordToAesKey(password);
     final key = enc.Key(aesKey);
@@ -27,37 +34,44 @@ class CryptoUtil {
     final dynamicIv = enc.IV(randomIvBytes);
     final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
     final encrypted = encrypter.encryptBytes(seed, iv: dynamicIv);
+
+    // 组合 IV (16字节) + 密文
     final combined = Uint8List(16 + encrypted.bytes.length);
     combined.setRange(0, 16, dynamicIv.bytes);
     combined.setRange(16, combined.length, encrypted.bytes);
     return base64Encode(combined);
   }
 
+  /// 使用密码解密钱包种子
   static Uint8List? decryptSeed(String encryptedBase64, String password) {
     try {
       final aesKey = _passwordToAesKey(password);
       final key = enc.Key(aesKey);
       final combined = base64Decode(encryptedBase64);
       if (combined.length < 16) return null;
+
       final iv = enc.IV(combined.sublist(0, 16));
       final ciphertextBytes = combined.sublist(16);
       final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
       final decrypted = encrypter.decryptBytes(enc.Encrypted(ciphertextBytes), iv: iv);
       return Uint8List.fromList(decrypted);
     } catch (e) {
-      return null;
+      return null; // 密码错误或数据损坏
     }
   }
 
+  /// 从种子推导出 Ed25519 密钥对
   static ed.KeyPair deriveKeyPair(Uint8List seed) {
     final privateKey = ed.newKeyFromSeed(seed);
     return ed.KeyPair(privateKey, ed.public(privateKey));
   }
 
+  /// 获取 Agent ID (公钥的 Hex 字符串)
   static String getAgentId(ed.KeyPair keyPair) {
     return HEX.encode(keyPair.publicKey.bytes);
   }
 
+  /// 将 Hex 格式的 Agent ID 转换为 Bech32 地址 (以 agent 开头)
   static String getAgentAddress(String agentIdHex) {
     final bytes = HEX.decode(agentIdHex);
     final converted = _convertBits(bytes, 8, 5, true);
@@ -65,6 +79,7 @@ class CryptoUtil {
     return bech32Codec.encode(Bech32('agent', converted));
   }
 
+  /// Bech32 编码所需的位转换工具函数
   static List<int> _convertBits(List<int> data, int from, int to, bool pad) {
     int acc = 0;
     int bits = 0;
@@ -84,7 +99,8 @@ class CryptoUtil {
     return result;
   }
 
-  // Exact match for Python's json.dumps(sort_keys=True, separators=(',', ':'))
+  /// 实现与 Python json.dumps(sort_keys=True, separators=(',', ':')) 完全一致的序列化
+  /// 保证在不同语言环境下计算出的哈希值一致
   static String _jsonDumps(dynamic value) {
     if (value is Map) {
       final sortedKeys = value.keys.toList()..sort();
@@ -104,14 +120,18 @@ class CryptoUtil {
     }
   }
 
+  /// 计算字符串的 SHA-256 哈希值
   static String computeHash(String input) {
     return sha256.convert(utf8.encode(input)).toString();
   }
 
+  /// 构造事件待签名负载 (Canonical Payload)
+  /// 规则：id|from|chat_id|chat_type|kind|created_at|content_hash|ext_hash
   static String canonicalEventPayload(Map<String, dynamic> event) {
     final contentHash = computeHash(event['content'] as String);
     final chat = event['chat'] as Map<String, dynamic>;
 
+    // 构造扩展字段，默认值与协议一致
     final ext = {
       "content_type": event['content_type'] ?? "text/plain",
       "attachments": event['attachments'] ?? [],
@@ -131,11 +151,14 @@ class CryptoUtil {
     return payloadParts.join("|");
   }
 
+  /// 使用私钥对负载进行 Ed25519 签名，返回 Base64 字符串
   static String signB64(ed.PrivateKey privateKey, String payload) {
     final signature = ed.sign(privateKey, utf8.encode(payload) as Uint8List);
     return base64Encode(signature);
   }
 
+  /// 构造 Chat 会话对象
+  /// 如果是 DM (私聊)，会自动根据 AgentID 排序生成唯一的 ChatID
   static Map<String, dynamic> buildChat({
     required String agentId,
     required String peerId,
@@ -149,6 +172,7 @@ class CryptoUtil {
     return {"id": "system:$agentId", "type": "system"};
   }
 
+  /// 构造一个完整的 Event 对象结构
   static Map<String, dynamic> buildEvent({
     required String agentId,
     required Map<String, dynamic> chat,
@@ -170,6 +194,7 @@ class CryptoUtil {
     return event;
   }
 
+  /// 验证 Ed25519 签名是否合法
   static bool verifySignature(String payload, String? sigB64, String publicKeyHex) {
     if (sigB64 == null) return false;
     try {

@@ -15,10 +15,11 @@ import '../models/friend.dart';
 import '../models/wallet.dart';
 import 'crypto_util.dart';
 
+/// 表示收到的好友申请
 class FriendRequest {
-  final String senderPubKey;
-  final String content;
-  final int timestamp;
+  final String senderPubKey; // 发送者公钥
+  final String content;      // 申请内容
+  final int timestamp;       // 时间戳
 
   FriendRequest({
     required this.senderPubKey,
@@ -27,6 +28,7 @@ class FriendRequest {
   });
 }
 
+/// 聊天与通信核心提供者，负责 WebSocket 连接、消息收发及好友管理
 class ChatProvider with ChangeNotifier {
   WebSocketChannel? _channel;
   bool _isConnected = false;
@@ -36,20 +38,21 @@ class ChatProvider with ChangeNotifier {
   List<String> _topics = [];
   List<Friend> _friends = [];
   Map<String, List<ChatMessage>> _messages = {};
-  List<FriendRequest> _pendingRequests = [];
+  List<FriendRequest> _pendingRequests = []; // 待处理的好友申请
 
-  // For authentication flow
+  // 认证流程相关变量
   Map<String, dynamic>? _lastChallenge;
   Completer<bool>? _authCompleter;
   ed.PrivateKey? _activePrivateKey;
   String? _tempPassword;
 
-  // Connection management
+  // 连接管理
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   String? _lastUsedUrl;
   Wallet? _lastUsedWallet;
 
+  // --- Getters ---
   bool get isConnected => _isConnected;
   bool get isAuthenticated => _isAuthenticated;
   bool get isConnecting => _isConnecting;
@@ -70,10 +73,11 @@ class ChatProvider with ChangeNotifier {
   static const String _relayUrlKeyPrefix = 'relay_url_';
   static const String _friendsKeyPrefix = 'friends_';
 
+  /// 连接到指定的 Relay 服务器
   Future<void> connect(String url, Wallet activeWallet) async {
     if (_isConnecting) return;
 
-    // Normalize URL
+    // 格式化 URL
     String targetUrl = url.trim();
     while (targetUrl.endsWith('/')) {
       targetUrl = targetUrl.substring(0, targetUrl.length - 1);
@@ -86,7 +90,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint("Attempting connection to: $targetUrl");
+      debugPrint("正在尝试连接: $targetUrl");
 
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 10)
@@ -105,17 +109,17 @@ class ChatProvider with ChangeNotifier {
       _lastChallenge = null;
       notifyListeners();
 
-      Fluttertoast.showToast(msg: "Connected to Relay", backgroundColor: Colors.green);
+      Fluttertoast.showToast(msg: "已连接到中继服务器", backgroundColor: Colors.green);
 
       _channel!.stream.listen((rawData) {
-        debugPrint("WS Received: $rawData");
+        debugPrint("收到原始数据: $rawData");
         _handleRawMessage(rawData, activeWallet);
       }, onDone: () {
-        _handleDisconnect("Relay connection closed");
+        _handleDisconnect("中继服务器连接已关闭");
         _scheduleReconnect();
       }, onError: (e) {
-        debugPrint("WS Stream Error: $e");
-        _handleDisconnect("Network Error: $e");
+        debugPrint("WS 流错误: $e");
+        _handleDisconnect("网络错误: $e");
         _scheduleReconnect();
       });
 
@@ -124,21 +128,22 @@ class ChatProvider with ChangeNotifier {
       await loadFriends(activeWallet.id);
 
     } catch (e) {
-      debugPrint("Connect Failure: $e");
+      debugPrint("连接失败: $e");
       _isConnecting = false;
-      _handleDisconnect("Connect Failed: $e");
+      _handleDisconnect("连接失败: $e");
       _scheduleReconnect();
     }
   }
 
+  /// 安排自动重连
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
     if (_lastUsedUrl == null || _lastUsedWallet == null) return;
 
     _reconnectAttempts++;
-    int delay = (1 << _reconnectAttempts).clamp(2, 30);
+    int delay = (1 << _reconnectAttempts).clamp(2, 30); // 指数退避算法
 
-    debugPrint("Reconnecting in $delay seconds...");
+    debugPrint("$delay 秒后尝试重连...");
     _reconnectTimer = Timer(Duration(seconds: delay), () {
       if (!_isConnected && !_isConnecting) {
         connect(_lastUsedUrl!, _lastUsedWallet!);
@@ -146,37 +151,43 @@ class ChatProvider with ChangeNotifier {
     });
   }
 
+  /// 处理从 WebSocket 接收到的原始 JSON 数据
   void _handleRawMessage(dynamic rawData, Wallet activeWallet) {
     try {
       final data = jsonDecode(rawData);
       final type = data['type'];
 
       if (type == 'challenge') {
+        // 收到服务器挑战请求，准备身份认证
         _lastChallenge = data;
         notifyListeners();
         if (_activePrivateKey != null) {
           _autoAuthenticate(activeWallet);
         }
       } else if (type == 'connected') {
+        // 认证成功
         _isAuthenticated = true;
         _lastChallenge = null;
         _authCompleter?.complete(true);
         _authCompleter = null;
         notifyListeners();
       } else if (type == 'pong') {
-        // Heartbeat OK
+        // 心跳响应
       } else if (type == 'deliver') {
+        // 收到投递的消息
         _handleDeliver(data, activeWallet);
       } else if (type == 'error') {
+        // 服务器返回错误
         _authCompleter?.complete(false);
         _authCompleter = null;
-        Fluttertoast.showToast(msg: "Relay: ${data['message'] ?? data}");
+        Fluttertoast.showToast(msg: "中继错误: ${data['message'] ?? data}");
       }
     } catch (e) {
-      debugPrint('Msg Parse Error: $e');
+      debugPrint('消息解析错误: $e');
     }
   }
 
+  /// 自动进行身份认证（如果私钥已在内存中）
   Future<void> _autoAuthenticate(Wallet activeWallet) async {
     if (_activePrivateKey == null || _lastChallenge == null) return;
     final challengeStr = "AUTH|${_lastChallenge!['nonce']}|${_lastChallenge!['ts']}";
@@ -185,6 +196,7 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(authPacket));
   }
 
+  /// 使用种子（Seed）和密码进行身份认证
   Future<bool> authenticateWithSeed(Uint8List seed, String password) async {
     if (_channel == null || _lastChallenge == null) return false;
 
@@ -206,20 +218,26 @@ class ChatProvider with ChangeNotifier {
     return _authCompleter!.future;
   }
 
+  /// 处理收到的 deliver 类型消息（普通聊天或好友申请）
   void _handleDeliver(Map<String, dynamic> data, Wallet activeWallet) {
     final event = data['event'];
     final sender = event['from'];
     final sig = data['sig'];
 
+    // 验证事件签名
     final payload = CryptoUtil.canonicalEventPayload(event);
     final isValid = CryptoUtil.verifySignature(payload, sig, sender);
 
-    if (!isValid) return;
+    if (!isValid) {
+      debugPrint("收到签名非法的事件，已丢弃");
+      return;
+    }
 
+    // 发送接收确认 (ACK)
     _sendAck(activeWallet.agentId, event);
 
+    // 如果是好友申请类型
     if (event['kind'] == 'friend_request') {
-      // Handle as a pending request if not already a friend
       if (!_friends.any((f) => f.pubKeyHex == sender)) {
         if (!_pendingRequests.any((r) => r.senderPubKey == sender)) {
           _pendingRequests.add(FriendRequest(
@@ -232,6 +250,7 @@ class ChatProvider with ChangeNotifier {
       }
     }
 
+    // 如果是普通聊天或好友申请（也展示在聊天记录中）
     if (event['kind'] == 'message' || event['kind'] == 'friend_request') {
       final msg = ChatMessage(
         content: event['content'],
@@ -250,6 +269,7 @@ class ChatProvider with ChangeNotifier {
       final chatId = event['chat']['id'];
       String peerId = sender;
       if (sender == activeWallet.agentId) {
+        // 如果是我自己发的（多端同步），解析对方是谁
         final parts = chatId.split(':');
         if (parts.length == 3 && parts[0] == 'dm') {
           peerId = (parts[1] == sender) ? parts[2] : parts[1];
@@ -262,6 +282,7 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  /// 发送消息确认 (ACK) 回执
   void _sendAck(String agentId, Map<String, dynamic> sourceEvent) {
     if (_activePrivateKey == null) return;
     final ackEvent = CryptoUtil.buildEvent(
@@ -276,6 +297,7 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(packet));
   }
 
+  /// 自动连接：加载本地好友并尝试连接上次使用的服务器
   Future<void> autoConnect(Wallet activeWallet) async {
     _lastUsedWallet = activeWallet;
     await loadFriends(activeWallet.id);
@@ -288,6 +310,7 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  /// 从 SharedPreferences 加载好友列表
   Future<void> loadFriends(String walletId) async {
     final prefs = await SharedPreferences.getInstance();
     final String? friendsJson = prefs.getString('${_friendsKeyPrefix}$walletId');
@@ -298,29 +321,33 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// 将当前好友列表保存到持久化存储
   Future<void> _saveFriends(String walletId) async {
     final prefs = await SharedPreferences.getInstance();
     final String encoded = jsonEncode(_friends.map((e) => e.toJson()).toList());
     await prefs.setString('${_friendsKeyPrefix}$walletId', encoded);
   }
 
+  /// 统一处理连接断开逻辑
   void _handleDisconnect(String message) {
     _isConnected = false;
     _isAuthenticated = false;
     _isConnecting = false;
     notifyListeners();
-    debugPrint("Disconnected: $message");
+    debugPrint("连接断开: $message");
   }
 
+  /// 手动断开 WebSocket 连接
   void disconnect() {
     _lastUsedUrl = null;
     _reconnectTimer?.cancel();
     _channel?.sink.close();
-    _handleDisconnect("Manual");
+    _handleDisconnect("手动断开");
     _activePrivateKey = null;
     _tempPassword = null;
   }
 
+  /// 向本地列表添加好友
   Future<void> addFriend(String walletId, String pubKeyHex, String alias) async {
     if (!_friends.any((f) => f.pubKeyHex == pubKeyHex)) {
       _friends.add(Friend(pubKeyHex: pubKeyHex, alias: alias));
@@ -329,6 +356,7 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  /// 在服务器端授权指定的 Agent 发送消息 (ACL Allow)
   Future<void> allowAgent(String agentId, String friendAgentId) async {
     if (_activePrivateKey == null || _channel == null) return;
     final systemChat = {"id": "system:$agentId", "type": "system"};
@@ -344,30 +372,34 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(packet));
   }
 
+  /// 拒绝收到的好友申请
   void rejectRequest(String senderPubKey) {
     _pendingRequests.removeWhere((r) => r.senderPubKey == senderPubKey);
     notifyListeners();
   }
 
+  /// 接受收到的好友申请
   Future<void> acceptRequest(String walletId, String agentId, String senderPubKey) async {
-    // 1. Authorize
+    // 1. 发送服务器授权
     await allowAgent(agentId, senderPubKey);
 
-    // 2. Add to friends (with default alias as prefix of pubkey)
-    final alias = "Friend ${senderPubKey.substring(0, 6)}";
+    // 2. 添加到本地好友列表 (默认别名为公钥前缀)
+    final alias = "好友 ${senderPubKey.substring(0, 6)}";
     await addFriend(walletId, senderPubKey, alias);
 
-    // 3. Remove from pending
+    // 3. 从待处理列表中移除
     _pendingRequests.removeWhere((r) => r.senderPubKey == senderPubKey);
     notifyListeners();
   }
 
+  /// 从本地列表中删除好友
   Future<void> deleteFriend(String walletId, String pubKeyHex) async {
     _friends.removeWhere((f) => f.pubKeyHex == pubKeyHex);
     await _saveFriends(walletId);
     notifyListeners();
   }
 
+  /// 切换指定好友的黑名单状态
   Future<void> toggleBlacklist(String walletId, String pubKeyHex) async {
     final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
     if (index != -1) {
@@ -377,6 +409,7 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  /// 向对方发送好友申请
   Future<void> sendFriendRequest(String agentId, String peerId, String content) async {
     if (!_isAuthenticated || _channel == null || _activePrivateKey == null) return;
 
@@ -394,7 +427,7 @@ class ChatProvider with ChangeNotifier {
 
     _channel!.sink.add(jsonEncode(packet));
 
-    // Also save to local message history so the user sees they sent a request
+    // 同时保存在本地聊天记录中，让用户能看到自己发送的申请
     final msg = ChatMessage(
       content: content,
       signature: sig,
@@ -408,6 +441,7 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  /// 发送普通文本聊天消息
   void sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId) {
     if (!_isAuthenticated || _channel == null) return;
     _activePrivateKey = privateKey;
@@ -417,6 +451,7 @@ class ChatProvider with ChangeNotifier {
     final sig = CryptoUtil.signB64(privateKey, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
+
     final msg = ChatMessage(
       content: content,
       signature: sig,
