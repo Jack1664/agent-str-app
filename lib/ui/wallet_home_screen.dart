@@ -7,6 +7,7 @@ import '../models/wallet.dart';
 import '../models/friend.dart';
 import 'chat_screen.dart';
 import 'add_friend_screen.dart';
+import 'topic_chat_screen.dart';
 
 class WalletHomeScreen extends StatefulWidget {
   const WalletHomeScreen({Key? key}) : super(key: key);
@@ -781,10 +782,13 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               backgroundColor: const Color(0xFF1A1A1A),
               child: const Icon(Icons.tag, color: Colors.white, size: 18),
             ),
-            title: Text(topic.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(topic.alias, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: const Text('Tap to open chat', style: TextStyle(fontSize: 12, color: Colors.grey)),
             onTap: () {
-              // TODO: 跳转到 Topic 聊天页面
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
+              );
             },
           ),
         );

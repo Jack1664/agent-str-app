@@ -76,7 +76,7 @@ class ChatProvider with ChangeNotifier {
   ed.PrivateKey? _activePrivateKey;
   String? _tempPassword;
 
-  // 连接管理
+  // 连接 management
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   String? _lastUsedUrl;
@@ -471,7 +471,10 @@ class ChatProvider with ChangeNotifier {
   Future<void> subscribeTopic(String walletId, String agentId, String topicName, {String? alias}) async {
     if (_activePrivateKey == null || _channel == null) return;
 
-    final topicChat = {"id": "topic:$topicName", "type": "topic", "title": topicName};
+    final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
+    final shortTitle = topicName.startsWith("topic:") ? topicName.substring(6) : topicName;
+
+    final topicChat = {"id": topicId, "type": "topic", "title": shortTitle};
     final event = CryptoUtil.buildEvent(
       agentId: agentId,
       chat: topicChat,
@@ -483,10 +486,10 @@ class ChatProvider with ChangeNotifier {
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
 
-    if (!_myTopics.any((t) => t.title == topicName)) {
+    if (!_myTopics.any((t) => t.id == topicId)) {
       _myTopics.add(TopicInfo(
-        id: "topic:$topicName",
-        title: topicName,
+        id: topicId,
+        title: shortTitle,
         alias: alias,
         isSubscribed: true
       ));
@@ -495,10 +498,22 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<void> updateTopicAlias(String walletId, String topicId, String newAlias) async {
+    final index = _myTopics.indexWhere((t) => t.id == topicId);
+    if (index != -1) {
+      _myTopics[index].alias = newAlias;
+      await _saveMyTopics(walletId);
+      notifyListeners();
+    }
+  }
+
   Future<void> unsubscribeTopic(String walletId, String agentId, String topicName) async {
     if (_activePrivateKey == null || _channel == null) return;
 
-    final topicChat = {"id": "topic:$topicName", "type": "topic", "title": topicName};
+    final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
+    final shortTitle = topicName.startsWith("topic:") ? topicName.substring(6) : topicName;
+
+    final topicChat = {"id": topicId, "type": "topic", "title": shortTitle};
     final event = CryptoUtil.buildEvent(
       agentId: agentId,
       chat: topicChat,
@@ -510,7 +525,7 @@ class ChatProvider with ChangeNotifier {
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
 
-    _myTopics.removeWhere((t) => t.title == topicName);
+    _myTopics.removeWhere((t) => t.id == topicId);
     await _saveMyTopics(walletId);
     notifyListeners();
   }
