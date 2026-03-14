@@ -28,6 +28,22 @@ class FriendRequest {
   });
 }
 
+/// 话题/群组信息
+class TopicInfo {
+  final String id;
+  final String title;
+  bool isSubscribed;
+
+  TopicInfo({required this.id, required this.title, this.isSubscribed = false});
+
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'isSubscribed': isSubscribed};
+  factory TopicInfo.fromJson(Map<String, dynamic> json) => TopicInfo(
+    id: json['id'],
+    title: json['title'],
+    isSubscribed: json['isSubscribed'] ?? false,
+  );
+}
+
 /// 聊天与通信核心提供者，负责 WebSocket 连接、消息收发及好友管理
 class ChatProvider with ChangeNotifier {
   WebSocketChannel? _channel;
@@ -35,7 +51,8 @@ class ChatProvider with ChangeNotifier {
   bool _isAuthenticated = false;
   bool _isConnecting = false;
 
-  List<String> _topics = [];
+  List<String> _discoveredTopics = []; // 从服务器发现的话题 ID 列表
+  List<TopicInfo> _myTopics = [];      // 我订阅的话题列表
   List<Friend> _friends = [];
   Map<String, List<ChatMessage>> _messages = {};
   List<FriendRequest> _pendingRequests = []; // 待处理的好友申请
@@ -65,13 +82,15 @@ class ChatProvider with ChangeNotifier {
   ed.PrivateKey? get activePrivateKey => _activePrivateKey;
   String? get tempPassword => _tempPassword;
 
-  List<String> get topics => _topics;
+  List<String> get discoveredTopics => _discoveredTopics;
+  List<TopicInfo> get myTopics => _myTopics;
   List<Friend> get friends => _friends;
   Map<String, List<ChatMessage>> get messages => _messages;
   List<FriendRequest> get pendingRequests => _pendingRequests;
 
   static const String _relayUrlKeyPrefix = 'relay_url_';
   static const String _friendsKeyPrefix = 'friends_';
+  static const String _topicsKeyPrefix = 'my_topics_';
 
   /// 连接到指定的 Relay 服务器
   Future<void> connect(String url, Wallet activeWallet) async {
@@ -126,6 +145,7 @@ class ChatProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('${_relayUrlKeyPrefix}${activeWallet.id}', url);
       await loadFriends(activeWallet.id);
+      await _loadMyTopics(activeWallet.id);
 
     } catch (e) {
       debugPrint("连接失败: $e");
@@ -260,15 +280,13 @@ class ChatProvider with ChangeNotifier {
         isMine: sender == activeWallet.agentId,
       );
 
-      final friend = _friends.firstWhere(
-        (f) => f.pubKeyHex == sender,
-        orElse: () => Friend(pubKeyHex: sender, alias: 'Unknown'),
-      );
-      if (friend.isBlacklisted) return;
-
       final chatId = event['chat']['id'];
+      final chatType = event['chat']['type'];
+
       String peerId = sender;
-      if (sender == activeWallet.agentId) {
+      if (chatType == 'topic') {
+        peerId = chatId; // 对于话题，直接使用话题 ID 作为消息 key
+      } else if (sender == activeWallet.agentId) {
         // 如果是我自己发的（多端同步），解析对方是谁
         final parts = chatId.split(':');
         if (parts.length == 3 && parts[0] == 'dm') {
@@ -297,10 +315,11 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(packet));
   }
 
-  /// 自动连接：加载本地好友并尝试连接上次使用的服务器
+  /// 自动连接：加载本地数据并尝试连接上次使用的服务器
   Future<void> autoConnect(Wallet activeWallet) async {
     _lastUsedWallet = activeWallet;
     await loadFriends(activeWallet.id);
+    await _loadMyTopics(activeWallet.id);
     if (_isConnected) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -310,7 +329,7 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 从 SharedPreferences 加载好友列表
+  /// 从 SharedPreferences 加载数据
   Future<void> loadFriends(String walletId) async {
     final prefs = await SharedPreferences.getInstance();
     final String? friendsJson = prefs.getString('${_friendsKeyPrefix}$walletId');
@@ -321,11 +340,27 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// 将当前好友列表保存到持久化存储
+  Future<void> _loadMyTopics(String walletId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? topicsJson = prefs.getString('${_topicsKeyPrefix}$walletId');
+    if (topicsJson != null) {
+      final List<dynamic> decoded = jsonDecode(topicsJson);
+      _myTopics = decoded.map((e) => TopicInfo.fromJson(e)).toList();
+    }
+    notifyListeners();
+  }
+
+  /// 持久化数据
   Future<void> _saveFriends(String walletId) async {
     final prefs = await SharedPreferences.getInstance();
     final String encoded = jsonEncode(_friends.map((e) => e.toJson()).toList());
     await prefs.setString('${_friendsKeyPrefix}$walletId', encoded);
+  }
+
+  Future<void> _saveMyTopics(String walletId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String encoded = jsonEncode(_myTopics.map((e) => e.toJson()).toList());
+    await prefs.setString('${_topicsKeyPrefix}$walletId', encoded);
   }
 
   /// 统一处理连接断开逻辑
@@ -347,7 +382,8 @@ class ChatProvider with ChangeNotifier {
     _tempPassword = null;
   }
 
-  /// 向本地列表添加好友
+  // --- 好友管理 ---
+
   Future<void> addFriend(String walletId, String pubKeyHex, String alias) async {
     if (!_friends.any((f) => f.pubKeyHex == pubKeyHex)) {
       _friends.add(Friend(pubKeyHex: pubKeyHex, alias: alias));
@@ -356,7 +392,6 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 修改好友备注
   Future<void> updateFriendAlias(String walletId, String pubKeyHex, String newAlias) async {
     final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
     if (index != -1) {
@@ -366,7 +401,6 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 置顶/取消置顶好友
   Future<void> toggleFriendPin(String walletId, String pubKeyHex) async {
     final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
     if (index != -1) {
@@ -376,7 +410,6 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 在服务器端授权指定的 Agent 发送消息 (ACL Allow)
   Future<void> allowAgent(String agentId, String friendAgentId) async {
     if (_activePrivateKey == null || _channel == null) return;
     final systemChat = {"id": "system:$agentId", "type": "system"};
@@ -392,34 +425,25 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(packet));
   }
 
-  /// 拒绝收到的好友申请
   void rejectRequest(String senderPubKey) {
     _pendingRequests.removeWhere((r) => r.senderPubKey == senderPubKey);
     notifyListeners();
   }
 
-  /// 接受收到的好友申请
   Future<void> acceptRequest(String walletId, String agentId, String senderPubKey) async {
-    // 1. 发送服务器授权
     await allowAgent(agentId, senderPubKey);
-
-    // 2. 添加到本地好友列表 (默认别名为公钥前缀)
     final alias = "好友 ${senderPubKey.substring(0, 6)}";
     await addFriend(walletId, senderPubKey, alias);
-
-    // 3. 从待处理列表中移除
     _pendingRequests.removeWhere((r) => r.senderPubKey == senderPubKey);
     notifyListeners();
   }
 
-  /// 从本地列表中删除好友
   Future<void> deleteFriend(String walletId, String pubKeyHex) async {
     _friends.removeWhere((f) => f.pubKeyHex == pubKeyHex);
     await _saveFriends(walletId);
     notifyListeners();
   }
 
-  /// 切换指定好友的黑名单状态
   Future<void> toggleBlacklist(String walletId, String pubKeyHex) async {
     final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
     if (index != -1) {
@@ -429,56 +453,87 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 向对方发送好友申请
+  // --- 话题 (Topics) 管理 ---
+
+  Future<void> subscribeTopic(String walletId, String agentId, String topicName) async {
+    if (_activePrivateKey == null || _channel == null) return;
+
+    final topicChat = {"id": "topic:$topicName", "type": "topic", "title": topicName};
+    final event = CryptoUtil.buildEvent(
+      agentId: agentId,
+      chat: topicChat,
+      kind: "chat_subscribe",
+      content: "",
+    );
+    final payload = CryptoUtil.canonicalEventPayload(event);
+    final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
+    final packet = {"type": "event", "event": event, "sig": sig};
+    _channel!.sink.add(jsonEncode(packet));
+
+    if (!_myTopics.any((t) => t.title == topicName)) {
+      _myTopics.add(TopicInfo(id: "topic:$topicName", title: topicName, isSubscribed: true));
+      await _saveMyTopics(walletId);
+      notifyListeners();
+    }
+  }
+
+  Future<void> unsubscribeTopic(String walletId, String agentId, String topicName) async {
+    if (_activePrivateKey == null || _channel == null) return;
+
+    final topicChat = {"id": "topic:$topicName", "type": "topic", "title": topicName};
+    final event = CryptoUtil.buildEvent(
+      agentId: agentId,
+      chat: topicChat,
+      kind: "chat_unsubscribe",
+      content: "",
+    );
+    final payload = CryptoUtil.canonicalEventPayload(event);
+    final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
+    final packet = {"type": "event", "event": event, "sig": sig};
+    _channel!.sink.add(jsonEncode(packet));
+
+    _myTopics.removeWhere((t) => t.title == topicName);
+    await _saveMyTopics(walletId);
+    notifyListeners();
+  }
+
+  // --- 消息发送 ---
+
   Future<void> sendFriendRequest(String agentId, String peerId, String content) async {
     if (!_isAuthenticated || _channel == null || _activePrivateKey == null) return;
 
     final chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");
-    final event = CryptoUtil.buildEvent(
-      agentId: agentId,
-      chat: chat,
-      kind: "friend_request",
-      content: content
-    );
-
+    final event = CryptoUtil.buildEvent(agentId: agentId, chat: chat, kind: "friend_request", content: content);
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
-
     _channel!.sink.add(jsonEncode(packet));
 
-    // 同时保存在本地聊天记录中，让用户能看到自己发送的申请
-    final msg = ChatMessage(
-      content: content,
-      signature: sig,
-      senderPubKeyHex: agentId,
-      timestamp: event['created_at'] * 1000,
-      isMine: true,
-    );
-
+    final msg = ChatMessage(content: content, signature: sig, senderPubKeyHex: agentId, timestamp: event['created_at'] * 1000, isMine: true);
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();
   }
 
-  /// 发送普通文本聊天消息
-  void sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId) {
+  void sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId, {String chatType = "dm"}) {
     if (!_isAuthenticated || _channel == null) return;
     _activePrivateKey = privateKey;
-    final chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");
+
+    Map<String, dynamic> chat;
+    if (chatType == "topic") {
+      final topicName = peerId.startsWith("topic:") ? peerId.substring(6) : peerId;
+      chat = {"id": "topic:$topicName", "type": "topic", "title": topicName};
+    } else {
+      chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");
+    }
+
     final event = CryptoUtil.buildEvent(agentId: agentId, chat: chat, kind: "message", content: content);
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(privateKey, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
 
-    final msg = ChatMessage(
-      content: content,
-      signature: sig,
-      senderPubKeyHex: agentId,
-      timestamp: event['created_at'] * 1000,
-      isMine: true,
-    );
+    final msg = ChatMessage(content: content, signature: sig, senderPubKeyHex: agentId, timestamp: event['created_at'] * 1000, isMine: true);
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();

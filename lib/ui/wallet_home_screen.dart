@@ -482,7 +482,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                 ),
               ),
               child: DefaultTabController(
-                length: 2,
+                length: 3,
                 child: Column(
                   children: [
                     TabBar(
@@ -495,6 +495,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                       labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                       tabs: const [
                         Tab(text: 'Friends'),
+                        Tab(text: 'Topics'),
                         Tab(text: 'Explore'),
                       ],
                     ),
@@ -503,6 +504,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                         children: [
                           _buildFriendsTab(chatProvider, wallet),
                           _buildTopicsList(chatProvider),
+                          _buildExploreList(chatProvider),
                         ],
                       ),
                     ),
@@ -541,7 +543,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           children: [
             Icon(Icons.people_outline, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            Text('No friends added yet', style: TextStyle(color: Colors.grey.shade500)),
+            const Text('No friends added yet', style: TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -749,7 +751,49 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
   }
 
   Widget _buildTopicsList(ChatProvider chatProvider) {
-    if (chatProvider.topics.isEmpty) {
+    if (chatProvider.myTopics.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.forum_outlined, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            const Text('No topics subscribed', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: chatProvider.myTopics.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final topic = chatProvider.myTopics[index];
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF6F8FA),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: CircleAvatar(
+              backgroundColor: const Color(0xFF1A1A1A),
+              child: const Icon(Icons.tag, color: Colors.white, size: 18),
+            ),
+            title: Text(topic.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: const Text('Tap to open chat', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            onTap: () {
+              // TODO: 跳转到 Topic 聊天页面
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExploreList(ChatProvider chatProvider) {
+    if (chatProvider.discoveredTopics.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -763,11 +807,11 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     }
     return ListView.separated(
       padding: const EdgeInsets.all(20),
-      itemCount: chatProvider.topics.length,
+      itemCount: chatProvider.discoveredTopics.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final pubKeyHex = chatProvider.topics[index];
-        final isFriend = chatProvider.friends.any((f) => f.pubKeyHex == pubKeyHex);
+        final topicId = chatProvider.discoveredTopics[index];
+        final isSubscribed = chatProvider.myTopics.any((t) => t.id == topicId);
 
         return Container(
           decoration: BoxDecoration(
@@ -781,20 +825,22 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               child: Icon(Icons.tag, color: Colors.white, size: 18),
             ),
             title: Text(
-              '${pubKeyHex.substring(0, 8)}...${pubKeyHex.substring(pubKeyHex.length - 8)}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'monospace'),
+              topicId.startsWith("topic:") ? topicId.substring(6) : topicId,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            subtitle: const Text('Online Wallet', style: TextStyle(fontSize: 11)),
-            trailing: isFriend
+            trailing: isSubscribed
                 ? const Icon(Icons.check_circle, color: Color(0xFF00D1C1))
                 : ElevatedButton(
-                    onPressed: () => _addFriendDialog(pubKeyHex),
+                    onPressed: () {
+                      final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
+                      chatProvider.subscribeTopic(wallet.id, wallet.agentId, topicId.startsWith("topic:") ? topicId.substring(6) : topicId);
+                    },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                       minimumSize: const Size(0, 32),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text('Add', style: TextStyle(fontSize: 12)),
+                    child: const Text('Join', style: TextStyle(fontSize: 12)),
                   ),
           ),
         );
