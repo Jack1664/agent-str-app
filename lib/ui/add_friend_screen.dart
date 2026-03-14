@@ -261,7 +261,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
             onPressed: _submitFriend,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 18),
-              backgroundColor: const Color(0xFF1A1A1A),
+              backgroundColor: const Color(0xFF00D1C1),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
             child: const Text('Send Friend Request', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
@@ -319,7 +319,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
           onPressed: _submitTopic,
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 18),
-            backgroundColor: const Color(0xFF1A1A1A),
+            backgroundColor: const Color(0xFF00D1C1),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
           child: const Text('Subscribe & Join', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),

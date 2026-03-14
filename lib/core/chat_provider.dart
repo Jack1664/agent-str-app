@@ -139,17 +139,17 @@ class ChatProvider with ChangeNotifier {
       _lastChallenge = null;
       notifyListeners();
 
-      Fluttertoast.showToast(msg: "已连接到中继服务器", backgroundColor: Colors.green);
+      Fluttertoast.showToast(msg: "Connected to Relay", backgroundColor: Colors.green);
 
       _channel!.stream.listen((rawData) {
         debugPrint("收到原始数据: $rawData");
         _handleRawMessage(rawData, activeWallet);
       }, onDone: () {
-        _handleDisconnect("中继服务器连接已关闭");
+        _handleDisconnect("Relay connection closed");
         _scheduleReconnect();
       }, onError: (e) {
         debugPrint("WS 流错误: $e");
-        _handleDisconnect("网络错误: $e");
+        _handleDisconnect("Network Error: $e");
         _scheduleReconnect();
       });
 
@@ -161,7 +161,7 @@ class ChatProvider with ChangeNotifier {
     } catch (e) {
       debugPrint("连接失败: $e");
       _isConnecting = false;
-      _handleDisconnect("连接失败: $e");
+      _handleDisconnect("Connect Failed: $e");
       _scheduleReconnect();
     }
   }

@@ -29,7 +29,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-    // 直接从 seedHex 派生私钥，不再询问密码
     final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
     final keyPair = CryptoUtil.deriveKeyPair(seed);
 
