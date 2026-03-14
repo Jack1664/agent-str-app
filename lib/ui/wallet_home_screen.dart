@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
 import '../core/crypto_util.dart';
+import '../models/wallet.dart';
+import '../models/friend.dart';
 import 'chat_screen.dart';
 import 'add_friend_screen.dart';
 
@@ -499,7 +501,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                     Expanded(
                       child: TabBarView(
                         children: [
-                          _buildFriendsList(chatProvider),
+                          _buildFriendsTab(chatProvider, wallet),
                           _buildTopicsList(chatProvider),
                         ],
                       ),
@@ -521,8 +523,11 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     );
   }
 
-  Widget _buildFriendsList(ChatProvider chatProvider) {
-    if (chatProvider.friends.isEmpty) {
+  Widget _buildFriendsTab(ChatProvider chatProvider, Wallet activeWallet) {
+    final pending = chatProvider.pendingRequests;
+    final friends = chatProvider.friends;
+
+    if (pending.isEmpty && friends.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -534,80 +539,147 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         ),
       );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: chatProvider.friends.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final friend = chatProvider.friends[index];
-        final char = friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : (friend.pubKeyHex.isNotEmpty ? friend.pubKeyHex[0].toUpperCase() : '?');
 
-        return Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF6F8FA),
-            borderRadius: BorderRadius.circular(20),
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        if (pending.isNotEmpty) ...[
+          const Text(
+            'PENDING REQUESTS',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            leading: CircleAvatar(
-              backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
-              child: Text(
-                char,
-                style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold),
+          const SizedBox(height: 12),
+          ...pending.map((req) => _buildPendingRequestItem(req, chatProvider, activeWallet)),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 12),
+        ],
+        if (friends.isNotEmpty) ...[
+          const Text(
+            'YOUR FRIENDS',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
+          ),
+          const SizedBox(height: 12),
+          ...friends.asMap().entries.map((entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildFriendItem(entry.value, chatProvider),
+              )),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPendingRequestItem(FriendRequest req, ChatProvider chatProvider, Wallet activeWallet) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF00D1C1).withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF00D1C1).withOpacity(0.2)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFF00D1C1),
+          child: const Icon(Icons.person_add, color: Colors.white, size: 20),
+        ),
+        title: Text(
+          'Request: ${req.senderPubKey.substring(0, 8)}...',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            req.content,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.check_circle, color: Color(0xFF00D1C1)),
+              onPressed: () => chatProvider.acceptRequest(activeWallet.id, activeWallet.agentId, req.senderPubKey),
+            ),
+            IconButton(
+              icon: const Icon(Icons.cancel, color: Colors.redAccent),
+              onPressed: () => chatProvider.rejectRequest(req.senderPubKey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFriendItem(Friend friend, ChatProvider chatProvider) {
+    final char = friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : (friend.pubKeyHex.isNotEmpty ? friend.pubKeyHex[0].toUpperCase() : '?');
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F8FA),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
+          child: Text(
+            char,
+            style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold),
+          ),
+        ),
+        title: Text(friend.alias, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(
+          friend.isBlacklisted ? 'Blacklisted' : 'Tap to start chat',
+          style: TextStyle(fontSize: 12, color: friend.isBlacklisted ? Colors.red : Colors.grey),
+        ),
+        onTap: () {
+          if (!friend.isBlacklisted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
+            );
+          }
+        },
+        trailing: PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          onSelected: (value) async {
+            final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
+            if (value == 'delete') {
+              final confirm = await _showDeleteConfirm(friend.alias);
+              if (confirm == true) {
+                chatProvider.deleteFriend(walletId, friend.pubKeyHex);
+              }
+            } else if (value == 'blacklist') {
+              chatProvider.toggleBlacklist(walletId, friend.pubKeyHex);
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'blacklist',
+              child: Row(
+                children: [
+                  Icon(Icons.block_flipped, size: 20, color: Colors.orange),
+                  SizedBox(width: 12),
+                  Text('Blacklist'),
+                ],
               ),
             ),
-            title: Text(friend.alias, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(
-              friend.isBlacklisted ? 'Blacklisted' : 'Tap to start chat',
-              style: TextStyle(fontSize: 12, color: friend.isBlacklisted ? Colors.red : Colors.grey),
+            const PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                  SizedBox(width: 12),
+                  Text('Delete', style: TextStyle(color: Colors.red)),
+                ],
+              ),
             ),
-            onTap: () {
-              if (!friend.isBlacklisted) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
-                );
-              }
-            },
-            trailing: PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              onSelected: (value) async {
-                final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
-                if (value == 'delete') {
-                  final confirm = await _showDeleteConfirm(friend.alias);
-                  if (confirm == true) {
-                    chatProvider.deleteFriend(walletId, friend.pubKeyHex);
-                  }
-                } else if (value == 'blacklist') {
-                  chatProvider.toggleBlacklist(walletId, friend.pubKeyHex);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'blacklist',
-                  child: Row(
-                    children: [
-                      Icon(Icons.block_flipped, size: 20, color: Colors.orange),
-                      SizedBox(width: 12),
-                      Text('Blacklist'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
-                      SizedBox(width: 12),
-                      Text('Delete', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -650,7 +722,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           children: [
             Icon(Icons.explore_outlined, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            Text('No active topics on relay', style: TextStyle(color: Colors.grey.shade500)),
+            const Text('No active topics on relay', style: TextStyle(color: Colors.grey)),
           ],
         ),
       );

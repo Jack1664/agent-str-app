@@ -15,6 +15,18 @@ import '../models/friend.dart';
 import '../models/wallet.dart';
 import 'crypto_util.dart';
 
+class FriendRequest {
+  final String senderPubKey;
+  final String content;
+  final int timestamp;
+
+  FriendRequest({
+    required this.senderPubKey,
+    required this.content,
+    required this.timestamp,
+  });
+}
+
 class ChatProvider with ChangeNotifier {
   WebSocketChannel? _channel;
   bool _isConnected = false;
@@ -24,6 +36,7 @@ class ChatProvider with ChangeNotifier {
   List<String> _topics = [];
   List<Friend> _friends = [];
   Map<String, List<ChatMessage>> _messages = {};
+  List<FriendRequest> _pendingRequests = [];
 
   // For authentication flow
   Map<String, dynamic>? _lastChallenge;
@@ -52,6 +65,7 @@ class ChatProvider with ChangeNotifier {
   List<String> get topics => _topics;
   List<Friend> get friends => _friends;
   Map<String, List<ChatMessage>> get messages => _messages;
+  List<FriendRequest> get pendingRequests => _pendingRequests;
 
   static const String _relayUrlKeyPrefix = 'relay_url_';
   static const String _friendsKeyPrefix = 'friends_';
@@ -204,6 +218,20 @@ class ChatProvider with ChangeNotifier {
 
     _sendAck(activeWallet.agentId, event);
 
+    if (event['kind'] == 'friend_request') {
+      // Handle as a pending request if not already a friend
+      if (!_friends.any((f) => f.pubKeyHex == sender)) {
+        if (!_pendingRequests.any((r) => r.senderPubKey == sender)) {
+          _pendingRequests.add(FriendRequest(
+            senderPubKey: sender,
+            content: event['content'],
+            timestamp: event['created_at'] * 1000,
+          ));
+          notifyListeners();
+        }
+      }
+    }
+
     if (event['kind'] == 'message' || event['kind'] == 'friend_request') {
       final msg = ChatMessage(
         content: event['content'],
@@ -314,6 +342,24 @@ class ChatProvider with ChangeNotifier {
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
+  }
+
+  void rejectRequest(String senderPubKey) {
+    _pendingRequests.removeWhere((r) => r.senderPubKey == senderPubKey);
+    notifyListeners();
+  }
+
+  Future<void> acceptRequest(String walletId, String agentId, String senderPubKey) async {
+    // 1. Authorize
+    await allowAgent(agentId, senderPubKey);
+
+    // 2. Add to friends (with default alias as prefix of pubkey)
+    final alias = "Friend ${senderPubKey.substring(0, 6)}";
+    await addFriend(walletId, senderPubKey, alias);
+
+    // 3. Remove from pending
+    _pendingRequests.removeWhere((r) => r.senderPubKey == senderPubKey);
+    notifyListeners();
   }
 
   Future<void> deleteFriend(String walletId, String pubKeyHex) async {
