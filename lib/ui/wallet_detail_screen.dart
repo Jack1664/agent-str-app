@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:hex/hex.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../models/wallet.dart';
 import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
@@ -128,6 +129,65 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
     );
   }
 
+  void _showQrCode(String data, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: QrImageView(
+                  data: data,
+                  version: QrVersions.auto,
+                  size: 220.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Scan this QR code to share your ID',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A1A1A),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _confirmDelete() {
     showDialog(
       context: context,
@@ -247,6 +307,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             _buildDataCard(
               content: widget.wallet.agentId,
               onCopy: () => _copyToClipboard(widget.wallet.agentId, 'Agent ID'),
+              onShowQr: () => _showQrCode(widget.wallet.agentId, 'Agent ID QR Code'),
               color: Colors.white,
             ),
             const SizedBox(height: 24),
@@ -255,6 +316,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             _buildDataCard(
               content: widget.wallet.agentAddress,
               onCopy: () => _copyToClipboard(widget.wallet.agentAddress, 'Agent Address'),
+              onShowQr: () => _showQrCode(widget.wallet.agentAddress, 'Address QR Code'),
               color: Colors.white,
             ),
             const SizedBox(height: 32),
@@ -291,6 +353,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
   Widget _buildDataCard({
     required String content,
     required VoidCallback onCopy,
+    VoidCallback? onShowQr,
     required Color color,
     bool isPrivate = false,
   }) {
@@ -318,17 +381,43 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: onCopy,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF6F8FA),
-                    borderRadius: BorderRadius.circular(12),
+              const SizedBox(width: 12),
+              Column(
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onCopy,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F8FA),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.copy_rounded, size: 20, color: Color(0xFF1A1A1A)),
+                      ),
+                    ),
                   ),
-                  child: const Icon(Icons.copy_rounded, size: 20, color: Color(0xFF1A1A1A)),
-                ),
+                  if (onShowQr != null) ...[
+                    const SizedBox(height: 10),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onShowQr,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF6F8FA),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.qr_code_2_rounded, size: 20, color: Color(0xFF1A1A1A)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),

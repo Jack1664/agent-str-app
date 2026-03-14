@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
 
@@ -16,6 +18,8 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   final _messageController = TextEditingController(text: "Hi, I'd like to add you as a friend");
   final _formKey = GlobalKey<FormState>();
 
+  bool _isScanning = false;
+
   void _submit() async {
     if (_formKey.currentState!.validate()) {
       final chatProvider = Provider.of<ChatProvider>(context, listen: false);
@@ -26,19 +30,15 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         final friendAgentId = _idController.text.trim();
         final requestMessage = _messageController.text.trim();
 
-        // 1. Save locally using wallet UUID for indexing
         await chatProvider.addFriend(
           activeWallet.id,
           friendAgentId,
           _aliasController.text.trim(),
         );
 
-        // 2. Authorize on Relay using Agent ID (Public Key Hex)
         if (chatProvider.isAuthenticated) {
-          // Corrected: Use activeWallet.agentId instead of activeWallet.id
           await chatProvider.allowAgent(activeWallet.agentId, friendAgentId);
 
-          // 3. Send friend request message
           if (requestMessage.isNotEmpty) {
             await chatProvider.sendFriendRequest(
               activeWallet.agentId,
@@ -63,6 +63,12 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     }
   }
 
+  void _toggleScanner() {
+    setState(() {
+      _isScanning = !_isScanning;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,23 +86,70 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 20),
-                const Icon(Icons.person_add_outlined, size: 80, color: Color(0xFF00D1C1)),
-                const SizedBox(height: 16),
-                const Text(
-                  'Add New Contact',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter the Agent ID and a nickname for your friend.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 10),
 
-                // Agent ID Input
+                // Scanner Area
+                if (_isScanning)
+                  Column(
+                    children: [
+                      Container(
+                        height: 250,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: MobileScanner(
+                          onDetect: (capture) {
+                            final List<Barcode> barcodes = capture.barcodes;
+                            if (barcodes.isNotEmpty) {
+                              final String? code = barcodes.first.rawValue;
+                              if (code != null) {
+                                final cleanResult = code.trim();
+                                if (cleanResult.length == 64) {
+                                  setState(() {
+                                    _idController.text = cleanResult;
+                                    _isScanning = false;
+                                  });
+                                } else {
+                                  // Optional: Show a quick error without stopping scanner
+                                }
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _toggleScanner,
+                        icon: const Icon(Icons.close, size: 16),
+                        label: const Text('Cancel Scan'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                      ),
+                    ],
+                  )
+                else
+                  const Column(
+                    children: [
+                      Icon(Icons.person_add_outlined, size: 80, color: Color(0xFF00D1C1)),
+                      SizedBox(height: 16),
+                      Text(
+                        'Add New Contact',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Enter Agent ID or scan QR code.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: 30),
+
                 _buildInputLabel('AGENT ID (HEX)'),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -105,6 +158,18 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                   decoration: InputDecoration(
                     hintText: 'e.g. 75a5749a...',
                     prefixIcon: const Icon(Icons.vpn_key_outlined, size: 20),
+                    suffixIcon: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: GestureDetector(
+                        onTap: _toggleScanner,
+                        child: SvgPicture.asset(
+                          'assets/images/scan.svg',
+                          width: 20,
+                          height: 20,
+                          colorFilter: const ColorFilter.mode(Color(0xFF00D1C1), BlendMode.srcIn),
+                        ),
+                      ),
+                    ),
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -116,12 +181,11 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                       borderSide: const BorderSide(color: Color(0xFF00D1C1), width: 1.5),
                     ),
                   ),
-                  validator: (v) => v == null || v.length < 4 ? 'Please enter a valid ID' : null,
+                  validator: (v) => v == null || v.length != 64 ? 'Agent ID must be 64 characters' : null,
                 ),
 
                 const SizedBox(height: 24),
 
-                // Alias Input
                 _buildInputLabel('ALIAS / NICKNAME'),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -145,7 +209,6 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
 
                 const SizedBox(height: 24),
 
-                // Request Message Input
                 _buildInputLabel('REQUEST MESSAGE'),
                 const SizedBox(height: 8),
                 TextFormField(
