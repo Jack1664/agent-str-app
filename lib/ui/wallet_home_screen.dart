@@ -520,7 +520,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         onPressed: () {
           Navigator.push(context, MaterialPageRoute(builder: (_) => const AddFriendScreen()));
         },
-        backgroundColor: const Color(0xFF1A1A1A),
+        backgroundColor: const Color(0xFF00D1C1),
         child: const Icon(Icons.person_add_rounded, color: Colors.white),
       ),
     );

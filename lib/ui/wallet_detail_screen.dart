@@ -174,7 +174,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A1A1A),
+                    backgroundColor: const Color(0xFF00D1C1),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
@@ -259,11 +259,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
+                color: const Color(0xFF00D1C1),
                 borderRadius: BorderRadius.circular(28),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: const Color(0xFF00D1C1).withOpacity(0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   )
@@ -275,8 +275,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   Row(
                     children: [
                       const CircleAvatar(
-                        backgroundColor: Color(0xFF00D1C1),
-                        child: Icon(Icons.wallet_rounded, color: Colors.white),
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.wallet_rounded, color: Color(0xFF00D1C1)),
                       ),
                       const SizedBox(width: 16),
                       Text(
@@ -292,7 +292,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   const SizedBox(height: 24),
                   const Text(
                     'Network',
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   const Text(
                     'Agent Str Main Network ',

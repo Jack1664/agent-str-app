@@ -176,10 +176,10 @@ class WalletListScreen extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 24),
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A1A1A),
+                  backgroundColor: const Color(0xFF00D1C1),
                   foregroundColor: Colors.white,
                   elevation: 8,
-                  shadowColor: Colors.black.withOpacity(0.4),
+                  shadowColor: const Color(0xFF00D1C1).withOpacity(0.4),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                 ),
