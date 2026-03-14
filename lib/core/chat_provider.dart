@@ -74,7 +74,6 @@ class ChatProvider with ChangeNotifier {
   Map<String, dynamic>? _lastChallenge;
   Completer<bool>? _authCompleter;
   ed.PrivateKey? _activePrivateKey;
-  String? _tempPassword;
 
   // 连接 management
   Timer? _reconnectTimer;
@@ -93,7 +92,6 @@ class ChatProvider with ChangeNotifier {
   Wallet? get lastUsedWallet => _lastUsedWallet;
 
   ed.PrivateKey? get activePrivateKey => _activePrivateKey;
-  String? get tempPassword => _tempPassword;
 
   List<String> get discoveredTopics => _discoveredTopics;
   List<TopicInfo> get myTopics => _myTopics;
@@ -191,12 +189,10 @@ class ChatProvider with ChangeNotifier {
       final type = data['type'];
 
       if (type == 'challenge') {
-        // 收到服务器挑战请求，准备身份认证
+        // 收到服务器挑战请求，自动使用内存中的私钥或钱包中的私钥进行认证
         _lastChallenge = data;
+        _autoAuthenticate(activeWallet);
         notifyListeners();
-        if (_activePrivateKey != null) {
-          _autoAuthenticate(activeWallet);
-        }
       } else if (type == 'connected') {
         // 认证成功
         _isAuthenticated = true;
@@ -220,35 +216,20 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 自动进行身份认证（如果私钥已在内存中）
+  /// 自动进行身份认证 (去掉了密码依赖)
   Future<void> _autoAuthenticate(Wallet activeWallet) async {
-    if (_activePrivateKey == null || _lastChallenge == null) return;
+    if (_lastChallenge == null) return;
+
+    // 如果内存中没有，从 activeWallet 的 seedHex 中派生
+    if (_activePrivateKey == null) {
+      final seed = Uint8List.fromList(HEX.decode(activeWallet.seedHex));
+      _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
+    }
+
     final challengeStr = "AUTH|${_lastChallenge!['nonce']}|${_lastChallenge!['ts']}";
     final sig = CryptoUtil.signB64(_activePrivateKey!, challengeStr);
     final authPacket = {"type": "auth", "agent_id": activeWallet.agentId, "sig": sig};
     _channel!.sink.add(jsonEncode(authPacket));
-  }
-
-  /// 使用种子（Seed）和密码进行身份认证
-  Future<bool> authenticateWithSeed(Uint8List seed, String password) async {
-    if (_channel == null || _lastChallenge == null) return false;
-
-    final keyPair = CryptoUtil.deriveKeyPair(seed);
-    _activePrivateKey = keyPair.privateKey;
-    _tempPassword = password;
-
-    final challengeStr = "AUTH|${_lastChallenge!['nonce']}|${_lastChallenge!['ts']}";
-    final sig = CryptoUtil.signB64(keyPair.privateKey, challengeStr);
-
-    final authPacket = {
-      "type": "auth",
-      "agent_id": CryptoUtil.getAgentId(keyPair),
-      "sig": sig,
-    };
-
-    _authCompleter = Completer<bool>();
-    _channel!.sink.add(jsonEncode(authPacket));
-    return _authCompleter!.future;
   }
 
   /// 处理收到的 deliver 类型消息（普通聊天或好友申请）
@@ -315,7 +296,13 @@ class ChatProvider with ChangeNotifier {
 
   /// 发送消息确认 (ACK) 回执
   void _sendAck(String agentId, Map<String, dynamic> sourceEvent) {
+    // 确保有私钥可用
+    if (_activePrivateKey == null && _lastUsedWallet != null) {
+       final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
+       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
+    }
     if (_activePrivateKey == null) return;
+
     final ackEvent = CryptoUtil.buildEvent(
       agentId: agentId,
       chat: sourceEvent['chat'],
@@ -392,7 +379,6 @@ class ChatProvider with ChangeNotifier {
     _channel?.sink.close();
     _handleDisconnect("手动断开");
     _activePrivateKey = null;
-    _tempPassword = null;
   }
 
   // --- 好友管理 ---
@@ -424,7 +410,12 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> allowAgent(String agentId, String friendAgentId) async {
+    if (_activePrivateKey == null && _lastUsedWallet != null) {
+       final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
+       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
+    }
     if (_activePrivateKey == null || _channel == null) return;
+
     final systemChat = {"id": "system:$agentId", "type": "system"};
     final event = CryptoUtil.buildEvent(
       agentId: agentId,
@@ -469,6 +460,10 @@ class ChatProvider with ChangeNotifier {
   // --- 话题 (Topics) 管理 ---
 
   Future<void> subscribeTopic(String walletId, String agentId, String topicName, {String? alias}) async {
+    if (_activePrivateKey == null && _lastUsedWallet != null) {
+       final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
+       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
+    }
     if (_activePrivateKey == null || _channel == null) return;
 
     final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
@@ -508,6 +503,10 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> unsubscribeTopic(String walletId, String agentId, String topicName) async {
+    if (_activePrivateKey == null && _lastUsedWallet != null) {
+       final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
+       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
+    }
     if (_activePrivateKey == null || _channel == null) return;
 
     final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
@@ -533,6 +532,10 @@ class ChatProvider with ChangeNotifier {
   // --- 消息发送 ---
 
   Future<void> sendFriendRequest(String agentId, String peerId, String content) async {
+    if (_activePrivateKey == null && _lastUsedWallet != null) {
+       final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
+       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
+    }
     if (!_isAuthenticated || _channel == null || _activePrivateKey == null) return;
 
     final chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");

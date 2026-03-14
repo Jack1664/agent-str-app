@@ -16,7 +16,6 @@ class CreateWalletScreen extends StatefulWidget {
 
 class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _privateKeyController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isProcessing = false;
@@ -32,7 +31,6 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
   void dispose() {
     _tabController.dispose();
     _nameController.dispose();
-    _passwordController.dispose();
     _privateKeyController.dispose();
     super.dispose();
   }
@@ -57,12 +55,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
         final keyPair = CryptoUtil.deriveKeyPair(seed);
         final agentId = CryptoUtil.getAgentId(keyPair);
         final agentAddress = CryptoUtil.getAgentAddress(agentId);
-        final encryptedSeed = CryptoUtil.encryptSeed(seed, _passwordController.text);
+        final seedHex = HEX.encode(seed);
 
         final wallet = Wallet(
           id: const Uuid().v4(),
           name: _nameController.text,
-          encryptedBase64Seed: encryptedSeed,
+          seedHex: seedHex,
           agentId: agentId,
           agentAddress: agentAddress,
         );
@@ -163,24 +161,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
                 },
               ),
 
-              // Password Input
-              _buildLabel('ENCRYPTION PASSWORD'),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _passwordController,
-                hint: 'Minimum 6 characters',
-                icon: Icons.lock_outline_rounded,
-                obscure: true,
-                validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 chars' : null,
-              ),
-
               const SizedBox(height: 40),
 
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(18),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  backgroundColor: const Color(0xFF1A1A1A),
+                  backgroundColor: const Color(0xFF00D1C1),
                 ),
                 onPressed: _isProcessing ? null : _saveWallet,
                 child: _isProcessing
@@ -197,7 +184,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
 
               const SizedBox(height: 16),
               Text(
-                'This password is used to encrypt your keys locally. Don\'t lose it!',
+                'Your keys are stored locally on this device.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),

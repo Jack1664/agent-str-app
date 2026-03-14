@@ -17,106 +17,6 @@ class WalletDetailScreen extends StatefulWidget {
 }
 
 class _WalletDetailScreenState extends State<WalletDetailScreen> {
-  final _passwordController = TextEditingController();
-  String? _decryptedPrivateKeyHex; // This will now store the 32-byte Seed
-  bool _isDecrypting = false;
-
-  void _showPrivateKeyDialog() async {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Security Verification', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your wallet password to reveal the private key.',
-              style: TextStyle(fontSize: 14, color: Colors.black54),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _passwordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                hintText: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline_rounded),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: () {
-                    _passwordController.clear();
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    final password = _passwordController.text;
-                    Navigator.pop(context);
-                    _decryptAndShow(password);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A1A1A),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Verify', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _decryptAndShow(String password) {
-    setState(() => _isDecrypting = true);
-
-    // Decrypt the seed
-    final seed = CryptoUtil.decryptSeed(widget.wallet.encryptedBase64Seed, password);
-
-    if (seed != null) {
-      // Consistent with Python: show the 32-byte seed as the Private Key
-      setState(() {
-        _decryptedPrivateKeyHex = HEX.encode(seed);
-        _isDecrypting = false;
-      });
-      _passwordController.clear();
-    } else {
-      setState(() => _isDecrypting = false);
-      _passwordController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid password'),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
@@ -322,15 +222,12 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             const SizedBox(height: 32),
             _buildSectionHeader('Private Key (Seed)', isDanger: true),
             const SizedBox(height: 12),
-            if (_decryptedPrivateKeyHex == null)
-              _buildRevealCard()
-            else
-              _buildDataCard(
-                content: _decryptedPrivateKeyHex!,
-                onCopy: () => _copyToClipboard(_decryptedPrivateKeyHex!, 'Private Key'),
-                color: Colors.red.shade50,
-                isPrivate: true,
-              ),
+            _buildDataCard(
+              content: widget.wallet.seedHex,
+              onCopy: () => _copyToClipboard(widget.wallet.seedHex, 'Private Key'),
+              color: Colors.red.shade50,
+              isPrivate: true,
+            ),
             const SizedBox(height: 40),
           ],
         ),
@@ -438,46 +335,6 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               ],
             ),
           ]
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRevealCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.lock_person_outlined, size: 48, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          const Text(
-            'Private key is encrypted',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Authentication is required to view',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _isDecrypting ? null : _showPrivateKeyDialog,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00D1C1),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            child: _isDecrypting
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Reveal Private Key'),
-          ),
         ],
       ),
     );

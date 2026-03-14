@@ -3,14 +3,14 @@ import '../core/crypto_util.dart';
 class Wallet {
   final String id;
   String name;
-  final String encryptedBase64Seed;
+  final String seedHex; // 存储原始私钥种子 (Hex格式)
   final String agentId; // Public Key Hex
   final String agentAddress; // Bech32 Address
 
   Wallet({
     required this.id,
     required this.name,
-    required this.encryptedBase64Seed,
+    required this.seedHex,
     required this.agentId,
     required this.agentAddress,
   });
@@ -19,7 +19,7 @@ class Wallet {
     return {
       'id': id,
       'name': name,
-      'encryptedBase64Seed': encryptedBase64Seed,
+      'seedHex': seedHex,
       'agentId': agentId,
       'agentAddress': agentAddress,
     };
@@ -28,12 +28,13 @@ class Wallet {
   factory Wallet.fromJson(Map<String, dynamic> json) {
     final String id = json['id'] as String? ?? '';
     final String name = json['name'] as String? ?? 'Unnamed Wallet';
-    final String encryptedBase64Seed = json['encryptedBase64Seed'] as String? ?? '';
 
-    // 兼容旧字段 publicKeyHex
+    // 兼容旧字段 encryptedBase64Seed，如果存在则视为明文(因为现在全局去掉了加密)
+    // 或者在 Provider 加载时进行转换。这里暂时简单处理。
+    final String seedHex = json['seedHex'] as String? ?? json['encryptedBase64Seed'] as String? ?? '';
+
     final String agentId = json['agentId'] as String? ?? json['publicKeyHex'] as String? ?? '';
 
-    // 自动迁移：如果 agentAddress 为空但有 agentId，则重新生成它
     String agentAddress = json['agentAddress'] as String? ?? '';
     if (agentAddress.isEmpty && agentId.isNotEmpty) {
       try {
@@ -46,7 +47,7 @@ class Wallet {
     return Wallet(
       id: id,
       name: name,
-      encryptedBase64Seed: encryptedBase64Seed,
+      seedHex: seedHex,
       agentId: agentId,
       agentAddress: agentAddress,
     );

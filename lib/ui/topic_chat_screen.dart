@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:hex/hex.dart';
+import 'dart:typed_data';
 import '../core/chat_provider.dart';
 import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
@@ -26,33 +28,9 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
     final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
-    // 1. Check if we have a cached password from the Challenge auth
-    String? password = chatProvider.tempPassword;
-
-    // 2. If no cache, prompt user
-    if (password == null) {
-      password = await _promptPassword(context);
-    }
-
-    if (password == null || !mounted) return;
-
-    final seed = CryptoUtil.decryptSeed(wallet.encryptedBase64Seed, password);
-    if (seed == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Invalid Password!'),
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-      return;
-    }
-
+    final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
     final keyPair = CryptoUtil.deriveKeyPair(seed);
-    // For topics, the identifier in _messages is the full topic ID (topic:name)
+
     chatProvider.sendMessage(
       text,
       keyPair.privateKey,
@@ -61,54 +39,6 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
       chatType: "topic"
     );
     _messageController.clear();
-  }
-
-  Future<String?> _promptPassword(BuildContext context) {
-    String psw = '';
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          title: const Text('Confirm Identity', style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Enter your password to sign this message with your private key.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
-              const SizedBox(height: 20),
-              TextField(
-                obscureText: true,
-                autofocus: true,
-                onChanged: (v) => psw = v,
-                decoration: InputDecoration(
-                  labelText: 'Wallet Password',
-                  prefixIcon: const Icon(Icons.lock_outline_rounded),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, null),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, psw),
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: const Text('Sign & Send'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
