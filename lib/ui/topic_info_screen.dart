@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
 
@@ -33,12 +35,11 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
 
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Topic alias updated'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(0xFF00D1C1),
-        ),
+      Fluttertoast.showToast(
+        msg: "Topic alias updated",
+        gravity: ToastGravity.TOP,
+        backgroundColor: const Color(0xFF00D1C1),
+        textColor: Colors.white,
       );
     }
   }
@@ -135,9 +136,28 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: SelectableText(
-                widget.topic.id,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 14, color: Colors.black54),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SelectableText(
+                      widget.topic.id,
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 14, color: Colors.black54),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: widget.topic.id));
+                      Fluttertoast.showToast(
+                        msg: "Topic ID copied to clipboard",
+                        gravity: ToastGravity.TOP,
+                        backgroundColor: const Color(0xFF00D1C1),
+                        textColor: Colors.white,
+                      );
+                    },
+                    child: const Icon(Icons.copy_rounded, size: 20, color: Color(0xFF00D1C1)),
+                  ),
+                ],
               ),
             ),
 

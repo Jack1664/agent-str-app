@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/wallet_provider.dart';
@@ -36,6 +37,7 @@ class AgentStrApp extends StatelessWidget {
           elevation: 0,
           foregroundColor: Color(0xFF1A1A1A),
           centerTitle: true,
+          systemOverlayStyle: SystemUiOverlayStyle.dark, // 设置状态栏图标和文字为黑色
           titleTextStyle: TextStyle(
             color: Color(0xFF1A1A1A),
             fontSize: 18,
@@ -71,7 +73,10 @@ class AgentStrApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
-      home: const Welcome_Screen_Wrapper(),
+      home: const AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark, // 确保初始页面也是黑色
+        child: Welcome_Screen_Wrapper(),
+      ),
     );
   }
 }
