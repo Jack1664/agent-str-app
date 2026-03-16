@@ -51,13 +51,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final char = friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?';
 
     return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(), // 点击空白区域收起键盘
+      onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF6F8FA),
+        backgroundColor: const Color(0xFFF0F2F5),
         appBar: AppBar(
           centerTitle: false,
           backgroundColor: Colors.white,
-          elevation: 0,
+          elevation: 0.5,
           title: Row(
             children: [
               CircleAvatar(
@@ -98,12 +98,12 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
                 reverse: true,
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
                   final msg = messages[messages.length - 1 - index];
-                  return _buildMessageBubble(msg);
+                  return _buildMessageBubble(msg, friend.alias);
                 },
               ),
             ),
@@ -114,44 +114,53 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage msg) {
+  Widget _buildMessageBubble(ChatMessage msg, String alias) {
     final bool isMine = msg.isMine;
     final timeStr = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(msg.timestamp));
     final double maxWidth = MediaQuery.of(context).size.width * 0.75;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Column(
-        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (!isMine) const SizedBox(width: 4),
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          if (!isMine) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.orange.shade100,
+              child: Text(alias.isNotEmpty ? alias[0].toUpperCase() : '?',
+                style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 8),
+          ],
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Column(
+              crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (!isMine)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 4),
+                    child: Text(alias, style: const TextStyle(fontSize: 12, color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
+                  ),
+                Container(
+                  padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
                   decoration: BoxDecoration(
                     color: isMine ? const Color(0xFF00D1C1) : Colors.white,
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: Radius.circular(isMine ? 20 : 4),
-                      bottomRight: Radius.circular(isMine ? 4 : 20),
+                      topLeft: Radius.circular(isMine ? 16 : 4),
+                      topRight: Radius.circular(isMine ? 4 : 16),
+                      bottomLeft: const Radius.circular(16),
+                      bottomRight: const Radius.circular(16),
                     ),
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
                     ],
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         msg.content,
@@ -161,7 +170,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           height: 1.4,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         timeStr,
                         style: TextStyle(
@@ -172,18 +181,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     ],
                   ),
                 ),
-              ),
-              if (isMine) const SizedBox(width: 4),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Padding(
-            padding: EdgeInsets.only(left: isMine ? 0 : 8, right: isMine ? 8 : 0),
-            child: Text(
-              'SIG: ${msg.signature.length > 8 ? msg.signature.substring(0, 8) : msg.signature}...',
-              style: TextStyle(fontSize: 9, color: Colors.grey.shade400, fontFamily: 'monospace'),
+              ],
             ),
           ),
+          if (isMine) const SizedBox(width: 4),
         ],
       ),
     );
@@ -192,20 +193,14 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildInputArea() {
     return Container(
       padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
+        left: 12,
+        right: 12,
+        top: 10,
+        bottom: MediaQuery.of(context).padding.bottom + 10,
       ),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          )
-        ],
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         children: [
@@ -222,22 +217,19 @@ class _ChatScreenState extends State<ChatScreen> {
                   hintText: 'Secure message...',
                   hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           GestureDetector(
             onTap: _sendMessage,
             child: Container(
-              height: 48,
-              width: 48,
-              decoration: const BoxDecoration(
-                color: Color(0xFF00D1C1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 24),
+              height: 40,
+              width: 40,
+              decoration: const BoxDecoration(color: Color(0xFF00D1C1), shape: BoxShape.circle),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             ),
           ),
         ],
