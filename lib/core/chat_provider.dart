@@ -275,14 +275,6 @@ class ChatProvider with ChangeNotifier {
 
     // 如果是普通聊天或好友申请（也展示在聊天记录中）
     if (event['kind'] == 'message' || event['kind'] == 'friend_request') {
-      final msg = ChatMessage(
-        content: event['content'],
-        signature: sig ?? '',
-        senderPubKeyHex: sender,
-        timestamp: event['created_at'] * 1000,
-        isMine: sender == activeWallet.agentId,
-      );
-
       final chatId = event['chat']['id'];
       final chatType = event['chat']['type'];
 
@@ -296,6 +288,20 @@ class ChatProvider with ChangeNotifier {
           peerId = (parts[1] == sender) ? parts[2] : parts[1];
         }
       }
+
+      // 去重逻辑：如果本地已存在该签名的消息，则不再添加
+      if (_messages.containsKey(peerId) && _messages[peerId]!.any((m) => m.signature == sig)) {
+        debugPrint("忽略重复推送的消息 (Sig: $sig)");
+        return;
+      }
+
+      final msg = ChatMessage(
+        content: event['content'],
+        signature: sig ?? '',
+        senderPubKeyHex: sender,
+        timestamp: event['created_at'] * 1000,
+        isMine: sender == activeWallet.agentId,
+      );
 
       // 保存到本地数据库
       await DbHelper.insertMessage(peerId, msg);
@@ -555,7 +561,7 @@ class ChatProvider with ChangeNotifier {
     final event = CryptoUtil.buildEvent(
       agentId: agentId,
       chat: topicChat,
-      kind: "chat_unsubscribe",
+      kind: "chat_subscribe",
       content: "",
     );
     final payload = CryptoUtil.canonicalEventPayload(event);
