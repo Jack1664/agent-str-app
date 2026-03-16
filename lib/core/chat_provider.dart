@@ -139,7 +139,11 @@ class ChatProvider with ChangeNotifier {
       _lastChallenge = null;
       notifyListeners();
 
-      Fluttertoast.showToast(msg: "Connected to Relay", backgroundColor: Colors.green);
+      Fluttertoast.showToast(
+        msg: "Connected to Relay",
+        backgroundColor: Colors.green,
+        gravity: ToastGravity.TOP,
+      );
 
       _channel!.stream.listen((rawData) {
         debugPrint("收到原始数据: $rawData");
@@ -209,7 +213,10 @@ class ChatProvider with ChangeNotifier {
         // 服务器返回错误
         _authCompleter?.complete(false);
         _authCompleter = null;
-        Fluttertoast.showToast(msg: "中继错误: ${data['message'] ?? data}");
+        Fluttertoast.showToast(
+          msg: "中继错误: ${data['message'] ?? data}",
+          gravity: ToastGravity.TOP,
+        );
       }
     } catch (e) {
       debugPrint('消息解析错误: $e');
