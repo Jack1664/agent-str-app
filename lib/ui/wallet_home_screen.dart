@@ -8,6 +8,7 @@ import '../models/friend.dart';
 import 'chat_screen.dart';
 import 'add_friend_screen.dart';
 import 'topic_chat_screen.dart';
+import 'explore_screen.dart';
 
 class WalletHomeScreen extends StatefulWidget {
   const WalletHomeScreen({Key? key}) : super(key: key);
@@ -389,7 +390,7 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                         children: [
                           _buildFriendsTab(chatProvider, wallet),
                           _buildTopicsList(chatProvider),
-                          _buildExploreList(chatProvider),
+                          const ExploreWidget(),
                         ],
                       ),
                     ),
