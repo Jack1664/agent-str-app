@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hex/hex.dart';
 import 'dart:typed_data';
+import 'package:intl/intl.dart';
 import '../core/chat_provider.dart';
 import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
@@ -49,69 +50,75 @@ class _ChatScreenState extends State<ChatScreen> {
     final messages = chatProvider.messages[friend.pubKeyHex] ?? [];
     final char = friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?';
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FA),
-      appBar: AppBar(
-        centerTitle: false,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
-              child: Text(char, style: const TextStyle(color: Color(0xFF00D1C1), fontSize: 14, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(friend.alias, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text(
-                    '${friend.pubKeyHex.substring(0, 12)}...',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontFamily: 'monospace'),
-                  ),
-                ],
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(), // 点击空白区域收起键盘
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF6F8FA),
+        appBar: AppBar(
+          centerTitle: false,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
+                child: Text(char, style: const TextStyle(color: Color(0xFF00D1C1), fontSize: 14, fontWeight: FontWeight.bold)),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.grey),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => FriendInfoScreen(friend: friend)),
-              );
-            },
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(friend.alias, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      '${friend.pubKeyHex.substring(0, 12)}...',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontFamily: 'monospace'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              reverse: true,
-              itemCount: messages.length,
-              itemBuilder: (context, index) {
-                final msg = messages[messages.length - 1 - index];
-                return _buildMessageBubble(msg);
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.grey),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => FriendInfoScreen(friend: friend)),
+                );
               },
             ),
-          ),
-          _buildInputArea(),
-        ],
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                reverse: true,
+                itemCount: messages.length,
+                itemBuilder: (context, index) {
+                  final msg = messages[messages.length - 1 - index];
+                  return _buildMessageBubble(msg);
+                },
+              ),
+            ),
+            _buildInputArea(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMessageBubble(ChatMessage msg) {
     final bool isMine = msg.isMine;
+    final timeStr = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(msg.timestamp));
+    final double maxWidth = MediaQuery.of(context).size.width * 0.75;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Column(
@@ -121,14 +128,13 @@ class _ChatScreenState extends State<ChatScreen> {
             mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (!isMine) ...[
-                const SizedBox(width: 4),
-              ],
-              Flexible(
+              if (!isMine) const SizedBox(width: 4),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isMine ? const Color(0xFF1A1A1A) : Colors.white,
+                    color: isMine ? const Color(0xFF00D1C1) : Colors.white,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(20),
                       topRight: const Radius.circular(20),
@@ -143,19 +149,31 @@ class _ChatScreenState extends State<ChatScreen> {
                       )
                     ],
                   ),
-                  child: Text(
-                    msg.content,
-                    style: TextStyle(
-                      color: isMine ? Colors.white : const Color(0xFF1A1A1A),
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        msg.content,
+                        style: TextStyle(
+                          color: isMine ? Colors.white : const Color(0xFF1A1A1A),
+                          fontSize: 15,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        timeStr,
+                        style: TextStyle(
+                          color: isMine ? Colors.white70 : Colors.grey.shade400,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              if (isMine) ...[
-                const SizedBox(width: 4),
-              ],
+              if (isMine) const SizedBox(width: 4),
             ],
           ),
           const SizedBox(height: 6),

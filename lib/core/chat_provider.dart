@@ -14,6 +14,7 @@ import '../models/chat_message.dart';
 import '../models/friend.dart';
 import '../models/wallet.dart';
 import 'crypto_util.dart';
+import 'db_helper.dart';
 
 /// 表示收到的好友申请
 class FriendRequest {
@@ -214,8 +215,9 @@ class ChatProvider with ChangeNotifier {
         _authCompleter?.complete(false);
         _authCompleter = null;
         Fluttertoast.showToast(
-          msg: "中继错误: ${data['message'] ?? data}",
+          msg: "Relay error: ${data['message'] ?? data}",
           gravity: ToastGravity.TOP,
+          backgroundColor: Colors.redAccent,
         );
       }
     } catch (e) {
@@ -240,7 +242,7 @@ class ChatProvider with ChangeNotifier {
   }
 
   /// 处理收到的 deliver 类型消息（普通聊天或好友申请）
-  void _handleDeliver(Map<String, dynamic> data, Wallet activeWallet) {
+  Future<void> _handleDeliver(Map<String, dynamic> data, Wallet activeWallet) async {
     final event = data['event'];
     final sender = event['from'];
     final sig = data['sig'];
@@ -295,6 +297,9 @@ class ChatProvider with ChangeNotifier {
         }
       }
 
+      // 保存到本地数据库
+      await DbHelper.insertMessage(peerId, msg);
+
       if (!_messages.containsKey(peerId)) _messages[peerId] = [];
       _messages[peerId]!.add(msg);
       notifyListeners();
@@ -343,6 +348,11 @@ class ChatProvider with ChangeNotifier {
     if (friendsJson != null) {
       final List<dynamic> decoded = jsonDecode(friendsJson);
       _friends = decoded.map((e) => Friend.fromJson(e)).toList();
+
+      // 加载每个好友的历史消息
+      for (var friend in _friends) {
+        _messages[friend.pubKeyHex] = await DbHelper.getMessages(friend.pubKeyHex);
+      }
     }
     notifyListeners();
   }
@@ -353,6 +363,11 @@ class ChatProvider with ChangeNotifier {
     if (topicsJson != null) {
       final List<dynamic> decoded = jsonDecode(topicsJson);
       _myTopics = decoded.map((e) => TopicInfo.fromJson(e)).toList();
+
+      // 加载每个话题的历史消息
+      for (var topic in _myTopics) {
+        _messages[topic.id] = await DbHelper.getMessages(topic.id);
+      }
     }
     notifyListeners();
   }
@@ -377,6 +392,15 @@ class ChatProvider with ChangeNotifier {
     _isConnecting = false;
     notifyListeners();
     debugPrint("连接断开: $message");
+
+    // 断开连接时也给个顶部提示
+    if (_lastUsedUrl != null) {
+      Fluttertoast.showToast(
+        msg: message,
+        gravity: ToastGravity.TOP,
+        backgroundColor: Colors.orangeAccent,
+      );
+    }
   }
 
   /// 手动断开 WebSocket 连接
@@ -384,7 +408,7 @@ class ChatProvider with ChangeNotifier {
     _lastUsedUrl = null;
     _reconnectTimer?.cancel();
     _channel?.sink.close();
-    _handleDisconnect("手动断开");
+    _handleDisconnect("Disconnected");
     _activePrivateKey = null;
   }
 
@@ -394,6 +418,10 @@ class ChatProvider with ChangeNotifier {
     if (!_friends.any((f) => f.pubKeyHex == pubKeyHex)) {
       _friends.add(Friend(pubKeyHex: pubKeyHex, alias: alias));
       await _saveFriends(walletId);
+
+      // 同时也尝试加载历史消息
+      _messages[pubKeyHex] = await DbHelper.getMessages(pubKeyHex);
+
       notifyListeners();
     }
   }
@@ -496,6 +524,10 @@ class ChatProvider with ChangeNotifier {
         isSubscribed: true
       ));
       await _saveMyTopics(walletId);
+
+      // 尝试加载历史消息
+      _messages[topicId] = await DbHelper.getMessages(topicId);
+
       notifyListeners();
     }
   }
@@ -553,12 +585,16 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(packet));
 
     final msg = ChatMessage(content: content, signature: sig, senderPubKeyHex: agentId, timestamp: event['created_at'] * 1000, isMine: true);
+
+    // 保存到本地数据库
+    await DbHelper.insertMessage(peerId, msg);
+
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();
   }
 
-  void sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId, {String chatType = "dm"}) {
+  Future<void> sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId, {String chatType = "dm"}) async {
     if (!_isAuthenticated || _channel == null) return;
     _activePrivateKey = privateKey;
 
@@ -577,6 +613,10 @@ class ChatProvider with ChangeNotifier {
     _channel!.sink.add(jsonEncode(packet));
 
     final msg = ChatMessage(content: content, signature: sig, senderPubKeyHex: agentId, timestamp: event['created_at'] * 1000, isMine: true);
+
+    // 保存到本地数据库
+    await DbHelper.insertMessage(peerId, msg);
+
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();
