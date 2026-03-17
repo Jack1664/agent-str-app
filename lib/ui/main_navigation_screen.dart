@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'chats_page.dart';
 import 'explore_screen.dart';
 import 'settings_screen.dart';
+import 'widgets/liquid_glass_tab_bar.dart';
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({Key? key}) : super(key: key);
+  const MainNavigationScreen({super.key});
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  static const double _tabBarVisualHeight = 88;
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
@@ -20,40 +22,40 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   ];
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (_selectedIndex == index) return;
+    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final bodyBottomPadding =
+        _tabBarVisualHeight + (bottomInset > 0 ? bottomInset : 16);
+
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      extendBody: true,
+      body: Padding(
+        padding: EdgeInsets.only(bottom: bodyBottomPadding),
+        child: IndexedStack(index: _selectedIndex, children: _pages),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: LiquidGlassTabBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        selectedItemColor: const Color(0xFF00D1C1),
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            activeIcon: Icon(Icons.chat_bubble),
+          LiquidTabItem(
             label: 'Chats',
+            icon: Icons.chat_bubble_outline_rounded,
+            activeIcon: Icons.chat_bubble_rounded,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore_outlined),
-            activeIcon: Icon(Icons.explore),
+          LiquidTabItem(
             label: 'Explore',
+            icon: Icons.explore_outlined,
+            activeIcon: Icons.explore_rounded,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
+          LiquidTabItem(
             label: 'Settings',
+            icon: Icons.settings_outlined,
+            activeIcon: Icons.settings_rounded,
           ),
         ],
       ),
