@@ -11,11 +11,12 @@ import 'package:uuid/uuid.dart';
 /// 加密与加密算法工具类
 /// 包含钱包助记词加解密、Ed25519 签名验证、Bech32 地址转换以及事件规范化逻辑
 class CryptoUtil {
-
   /// 生成随机的 32 字节种子 (Seed)
   static Uint8List generateSeed() {
     final random = Random.secure();
-    return Uint8List.fromList(List<int>.generate(32, (i) => random.nextInt(256)));
+    return Uint8List.fromList(
+      List<int>.generate(32, (i) => random.nextInt(256)),
+    );
   }
 
   /// 将用户密码转换为 AES 加密所需的 256 位密钥 (SHA-256)
@@ -30,7 +31,9 @@ class CryptoUtil {
   static String encryptSeed(Uint8List seed, String password) {
     final aesKey = _passwordToAesKey(password);
     final key = enc.Key(aesKey);
-    final randomIvBytes = Uint8List.fromList(List<int>.generate(16, (i) => Random.secure().nextInt(256)));
+    final randomIvBytes = Uint8List.fromList(
+      List<int>.generate(16, (i) => Random.secure().nextInt(256)),
+    );
     final dynamicIv = enc.IV(randomIvBytes);
     final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
     final encrypted = encrypter.encryptBytes(seed, iv: dynamicIv);
@@ -53,7 +56,10 @@ class CryptoUtil {
       final iv = enc.IV(combined.sublist(0, 16));
       final ciphertextBytes = combined.sublist(16);
       final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
-      final decrypted = encrypter.decryptBytes(enc.Encrypted(ciphertextBytes), iv: iv);
+      final decrypted = encrypter.decryptBytes(
+        enc.Encrypted(ciphertextBytes),
+        iv: iv,
+      );
       return Uint8List.fromList(decrypted);
     } catch (e) {
       return null; // 密码错误或数据损坏
@@ -179,6 +185,8 @@ class CryptoUtil {
     required String kind,
     required String content,
     Map<String, dynamic>? metadata,
+    String contentType = "text/plain",
+    List<Map<String, dynamic>>? attachments,
   }) {
     final event = {
       "id": const Uuid().v4(),
@@ -187,7 +195,11 @@ class CryptoUtil {
       "kind": kind,
       "created_at": DateTime.now().millisecondsSinceEpoch ~/ 1000,
       "content": content,
+      "content_type": contentType,
     };
+    if (attachments != null && attachments.isNotEmpty) {
+      event["attachments"] = attachments;
+    }
     if (metadata != null && metadata.isNotEmpty) {
       event["metadata"] = metadata;
     }
@@ -195,7 +207,11 @@ class CryptoUtil {
   }
 
   /// 验证 Ed25519 签名是否合法
-  static bool verifySignature(String payload, String? sigB64, String publicKeyHex) {
+  static bool verifySignature(
+    String payload,
+    String? sigB64,
+    String publicKeyHex,
+  ) {
     if (sigB64 == null) return false;
     try {
       final payloadBytes = utf8.encode(payload) as Uint8List;

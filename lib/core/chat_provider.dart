@@ -712,6 +712,9 @@ class ChatProvider with ChangeNotifier {
     String agentId,
     String peerId, {
     String chatType = "dm",
+    String contentType = "text/plain",
+    Map<String, dynamic>? metadata,
+    List<Map<String, dynamic>>? attachments,
   }) async {
     if (!_isAuthenticated || _channel == null) return;
     _activePrivateKey = privateKey;
@@ -734,6 +737,9 @@ class ChatProvider with ChangeNotifier {
       chat: chat,
       kind: "message",
       content: content,
+      contentType: contentType,
+      metadata: metadata,
+      attachments: attachments,
     );
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(privateKey, payload);
@@ -750,5 +756,42 @@ class ChatProvider with ChangeNotifier {
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();
+  }
+
+  Future<void> sendVoiceMessage(
+    String filePath,
+    Duration duration,
+    ed.PrivateKey privateKey,
+    String agentId,
+    String peerId, {
+    String chatType = "dm",
+  }) async {
+    final totalSeconds = duration.inSeconds;
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
+    final label = '[Voice message $minutes:$seconds]';
+
+    await sendMessage(
+      label,
+      privateKey,
+      agentId,
+      peerId,
+      chatType: chatType,
+      contentType: 'audio/aac',
+      metadata: {
+        'message_type': 'voice',
+        'duration_ms': duration.inMilliseconds,
+        'local_path': filePath,
+        'mime_type': 'audio/aac',
+      },
+      attachments: [
+        {
+          'type': 'audio',
+          'mime_type': 'audio/aac',
+          'local_path': filePath,
+          'duration_ms': duration.inMilliseconds,
+        },
+      ],
+    );
   }
 }

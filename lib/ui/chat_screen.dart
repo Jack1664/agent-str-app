@@ -53,6 +53,25 @@ class _ChatScreenState extends State<ChatScreen> {
     _messageController.clear();
   }
 
+  Future<void> _sendVoiceMessage(String filePath, Duration duration) async {
+    final wallet = Provider.of<WalletProvider>(
+      context,
+      listen: false,
+    ).activeWallet!;
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+
+    final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
+    final keyPair = CryptoUtil.deriveKeyPair(seed);
+
+    await chatProvider.sendVoiceMessage(
+      filePath,
+      duration,
+      keyPair.privateKey,
+      wallet.agentId,
+      widget.friend.pubKeyHex,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
@@ -291,6 +310,7 @@ class _ChatScreenState extends State<ChatScreen> {
       onSend: _sendMessage,
       onAttach: () {},
       onMic: () {},
+      onSendVoice: _sendVoiceMessage,
     );
   }
 }
