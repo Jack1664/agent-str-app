@@ -4,6 +4,7 @@ class ChatMessage {
   final String senderPubKeyHex;
   final int timestamp;
   final bool isMine;
+  final bool isSystem;
 
   ChatMessage({
     required this.content,
@@ -11,6 +12,7 @@ class ChatMessage {
     required this.senderPubKeyHex,
     required this.timestamp,
     this.isMine = false,
+    this.isSystem = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -19,6 +21,7 @@ class ChatMessage {
       'signature': signature,
       'senderPubKeyHex': senderPubKeyHex,
       'timestamp': timestamp,
+      'isSystem': isSystem,
     };
   }
 
@@ -28,6 +31,7 @@ class ChatMessage {
       signature: json['signature'] as String,
       senderPubKeyHex: json['senderPubKeyHex'] as String,
       timestamp: json['timestamp'] as int,
+      isSystem: json['isSystem'] as bool? ?? false,
     );
   }
 }

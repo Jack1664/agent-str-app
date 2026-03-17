@@ -27,13 +27,21 @@ class _ChatScreenState extends State<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
+    final wallet = Provider.of<WalletProvider>(
+      context,
+      listen: false,
+    ).activeWallet!;
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
     final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
     final keyPair = CryptoUtil.deriveKeyPair(seed);
 
-    chatProvider.sendMessage(text, keyPair.privateKey, wallet.agentId, widget.friend.pubKeyHex);
+    chatProvider.sendMessage(
+      text,
+      keyPair.privateKey,
+      wallet.agentId,
+      widget.friend.pubKeyHex,
+    );
     _messageController.clear();
   }
 
@@ -63,17 +71,34 @@ class _ChatScreenState extends State<ChatScreen> {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
-                child: Text(char, style: const TextStyle(color: Color(0xFF00D1C1), fontSize: 14, fontWeight: FontWeight.bold)),
+                child: Text(
+                  char,
+                  style: const TextStyle(
+                    color: Color(0xFF00D1C1),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(friend.alias, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      friend.alias,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       '${friend.pubKeyHex.substring(0, 12)}...',
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontFamily: 'monospace'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                        fontFamily: 'monospace',
+                      ),
                     ),
                   ],
                 ),
@@ -86,7 +111,9 @@ class _ChatScreenState extends State<ChatScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => FriendInfoScreen(friend: friend)),
+                  MaterialPageRoute(
+                    builder: (_) => FriendInfoScreen(friend: friend),
+                  ),
                 );
               },
             ),
@@ -98,7 +125,10 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 20,
+                ),
                 reverse: true,
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
@@ -115,8 +145,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageBubble(ChatMessage msg, String alias) {
+    if (msg.isSystem) {
+      return _buildSystemNotice(msg);
+    }
+
     final bool isMine = msg.isMine;
-    final timeStr = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(msg.timestamp));
+    final timeStr = DateFormat(
+      'HH:mm',
+    ).format(DateTime.fromMillisecondsSinceEpoch(msg.timestamp));
     final double maxWidth = MediaQuery.of(context).size.width * 0.75;
 
     // 头像首字母
@@ -127,21 +163,35 @@ class _ChatScreenState extends State<ChatScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
-        mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMine
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end, // 与气泡底部对齐
         children: [
           if (!isMine) ...[
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.orange.shade100,
-              child: Text(avatarChar, style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold)),
+              child: Text(
+                avatarChar,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
           ],
           ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
             child: Container(
-              padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
+              padding: const EdgeInsets.only(
+                left: 12,
+                right: 12,
+                top: 8,
+                bottom: 6,
+              ),
               decoration: BoxDecoration(
                 color: isMine ? const Color(0xFF00D1C1) : Colors.white,
                 borderRadius: BorderRadius.only(
@@ -151,19 +201,29 @@ class _ChatScreenState extends State<ChatScreen> {
                   bottomRight: Radius.circular(isMine ? 4 : 16),
                 ),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
                 ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isMine
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   if (!isMine)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
                         agentIdShort,
-                        style: const TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   Text(
@@ -188,6 +248,30 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           if (isMine) const SizedBox(width: 4),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSystemNotice(ChatMessage msg) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFE5E5),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0xFFFFB8B8)),
+          ),
+          child: Text(
+            msg.content,
+            style: const TextStyle(
+              color: Color(0xFFD93025),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -219,7 +303,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   hintText: 'Secure message...',
                   hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
               ),
             ),
@@ -230,8 +317,15 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Container(
               height: 40,
               width: 40,
-              decoration: const BoxDecoration(color: Color(0xFF00D1C1), shape: BoxShape.circle),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF00D1C1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.send_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
         ],

@@ -82,6 +82,7 @@ class ChatProvider with ChangeNotifier {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   String? _lastUsedUrl;
+  String? _lastDirectPeerId;
   String _agentsUrl = 'http://112.126.60.140:8765/api/agents';
   String _topicsUrl = 'http://112.126.60.140:8765/api/topics';
   Wallet? _lastUsedWallet;
@@ -232,10 +233,19 @@ class ChatProvider with ChangeNotifier {
       } else if (type == 'error') {
         _authCompleter?.complete(false);
         _authCompleter = null;
-        TopNotice.show(
-          'Relay error: ${data['message'] ?? data}',
-          backgroundColor: Colors.redAccent,
-        );
+        final errorMessage = (data['error'] ?? data['message'] ?? data)
+            .toString();
+        if (errorMessage == 'acl deny' && _lastDirectPeerId != null) {
+          _appendSystemMessage(
+            _lastDirectPeerId!,
+            'Friend request not accepted',
+          );
+        } else {
+          TopNotice.show(
+            'Relay error: $errorMessage',
+            backgroundColor: Colors.redAccent,
+          );
+        }
       }
     } catch (e) {
       debugPrint('消息解析错误: $e');
@@ -337,6 +347,27 @@ class ChatProvider with ChangeNotifier {
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
     final packet = {"type": "event", "event": ackEvent, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
+  }
+
+  void _appendSystemMessage(String peerId, String content) {
+    final existingMessages = _messages[peerId];
+    if (existingMessages != null &&
+        existingMessages.isNotEmpty &&
+        existingMessages.last.isSystem &&
+        existingMessages.last.content == content) {
+      return;
+    }
+
+    final msg = ChatMessage(
+      content: content,
+      signature: 'system_${DateTime.now().microsecondsSinceEpoch}',
+      senderPubKeyHex: 'system',
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      isSystem: true,
+    );
+    _messages.putIfAbsent(peerId, () => []);
+    _messages[peerId]!.add(msg);
+    notifyListeners();
   }
 
   Future<void> autoConnect(Wallet activeWallet) async {
@@ -661,6 +692,7 @@ class ChatProvider with ChangeNotifier {
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
+    _lastDirectPeerId = peerId;
     final msg = ChatMessage(
       content: content,
       signature: sig,
@@ -690,6 +722,7 @@ class ChatProvider with ChangeNotifier {
           : peerId;
       chat = {"id": "topic:$topicName", "type": "topic", "title": topicName};
     } else {
+      _lastDirectPeerId = peerId;
       chat = CryptoUtil.buildChat(
         agentId: agentId,
         peerId: peerId,

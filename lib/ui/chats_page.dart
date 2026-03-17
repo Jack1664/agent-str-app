@@ -513,7 +513,10 @@ class _ChatsPageState extends State<ChatsPage> {
   String? _getLatestMessagePreview(List<ChatMessage>? messages) {
     if (messages == null || messages.isEmpty) return null;
 
-    final latest = messages.last;
+    final visibleMessages = messages.where((message) => !message.isSystem);
+    if (visibleMessages.isEmpty) return null;
+
+    final latest = visibleMessages.last;
     final content = latest.content.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (content.isEmpty) return null;
     return latest.isMine ? 'You: $content' : content;
