@@ -8,6 +8,7 @@ import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
 import '../models/chat_message.dart';
 import 'topic_info_screen.dart';
+import 'widgets/chat_composer.dart';
 
 class TopicChatScreen extends StatefulWidget {
   final TopicInfo topic;
@@ -22,11 +23,21 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
   final _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
+    final wallet = Provider.of<WalletProvider>(
+      context,
+      listen: false,
+    ).activeWallet!;
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
     final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
@@ -37,7 +48,7 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
       keyPair.privateKey,
       wallet.agentId,
       widget.topic.id,
-      chatType: "topic"
+      chatType: "topic",
     );
     _messageController.clear();
   }
@@ -68,17 +79,34 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.1),
-                child: Text(char, style: const TextStyle(color: Color(0xFF1A1A1A), fontSize: 14, fontWeight: FontWeight.bold)),
+                child: Text(
+                  char,
+                  style: const TextStyle(
+                    color: Color(0xFF1A1A1A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(topic.alias, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                      topic.alias,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       topic.id,
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontFamily: 'monospace'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                        fontFamily: 'monospace',
+                      ),
                     ),
                   ],
                 ),
@@ -91,7 +119,9 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => TopicInfoScreen(topic: topic)),
+                  MaterialPageRoute(
+                    builder: (_) => TopicInfoScreen(topic: topic),
+                  ),
                 );
               },
             ),
@@ -103,7 +133,10 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 20,
+                ),
                 reverse: true,
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
@@ -121,7 +154,9 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
 
   Widget _buildMessageBubble(ChatMessage msg) {
     final bool isMine = msg.isMine;
-    final timeStr = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(msg.timestamp));
+    final timeStr = DateFormat(
+      'HH:mm',
+    ).format(DateTime.fromMillisecondsSinceEpoch(msg.timestamp));
     final double maxWidth = MediaQuery.of(context).size.width * 0.75;
 
     // Agent ID 展示
@@ -132,21 +167,35 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
-        mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMine
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end, // 底部对齐
         children: [
           if (!isMine) ...[
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.orange.shade100,
-              child: Text(avatarChar, style: const TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold)),
+              child: Text(
+                avatarChar,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             const SizedBox(width: 8),
           ],
           ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
             child: Container(
-              padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
+              padding: const EdgeInsets.only(
+                left: 12,
+                right: 12,
+                top: 8,
+                bottom: 6,
+              ),
               decoration: BoxDecoration(
                 color: isMine ? const Color(0xFF00D1C1) : Colors.white,
                 borderRadius: BorderRadius.only(
@@ -156,19 +205,29 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
                   bottomRight: Radius.circular(isMine ? 4 : 16),
                 ),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
                 ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isMine
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   if (!isMine)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
                         agentIdShort,
-                        style: const TextStyle(fontSize: 11, color: Colors.orange, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   Text(
@@ -198,49 +257,12 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
   }
 
   Widget _buildInputArea() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 12,
-        top: 10,
-        bottom: MediaQuery.of(context).padding.bottom + 10,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6F8FA),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: TextField(
-                controller: _messageController,
-                maxLines: null,
-                decoration: const InputDecoration(
-                  hintText: 'Message...',
-                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _sendMessage,
-            child: Container(
-              height: 40,
-              width: 40,
-              decoration: const BoxDecoration(color: Color(0xFF00D1C1), shape: BoxShape.circle),
-              child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-            ),
-          ),
-        ],
-      ),
+    return ChatComposer(
+      controller: _messageController,
+      hintText: 'Message...',
+      onSend: _sendMessage,
+      onAttach: () {},
+      onMic: () {},
     );
   }
 }

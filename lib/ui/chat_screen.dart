@@ -9,6 +9,7 @@ import '../core/wallet_provider.dart';
 import '../models/friend.dart';
 import '../models/chat_message.dart';
 import 'friend_info_screen.dart';
+import 'widgets/chat_composer.dart';
 
 class ChatScreen extends StatefulWidget {
   final Friend friend;
@@ -22,6 +23,13 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
@@ -277,59 +285,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputArea() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 12,
-        top: 10,
-        bottom: MediaQuery.of(context).padding.bottom + 10,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6F8FA),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: TextField(
-                controller: _messageController,
-                maxLines: null,
-                decoration: const InputDecoration(
-                  hintText: 'Secure message...',
-                  hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _sendMessage,
-            child: Container(
-              height: 40,
-              width: 40,
-              decoration: const BoxDecoration(
-                color: Color(0xFF00D1C1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ChatComposer(
+      controller: _messageController,
+      hintText: 'Secure message...',
+      onSend: _sendMessage,
+      onAttach: () {},
+      onMic: () {},
     );
   }
 }
