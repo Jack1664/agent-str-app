@@ -5,6 +5,7 @@ import 'package:hex/hex.dart';
 import 'dart:typed_data';
 import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
+import '../core/chat_provider.dart';
 import '../models/wallet.dart';
 
 class CreateWalletScreen extends StatefulWidget {
@@ -65,7 +66,13 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
           agentAddress: agentAddress,
         );
 
-        await Provider.of<WalletProvider>(context, listen: false).addWallet(wallet);
+        final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+        await walletProvider.addWallet(wallet);
+
+        // Also auto-connect the chat provider for the new wallet
+        if (mounted) {
+          Provider.of<ChatProvider>(context, listen: false).autoConnect(wallet);
+        }
 
         if (mounted) {
           Navigator.of(context).pop();

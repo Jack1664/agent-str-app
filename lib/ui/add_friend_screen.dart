@@ -113,42 +113,31 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Segmented Toggle
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildTabButton(0, 'Friend', Icons.person_add_alt_1),
-                    ),
-                    Expanded(
-                      child: _buildTabButton(1, 'Topic', Icons.tag),
-                    ),
-                  ],
-                ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(16),
               ),
-              const SizedBox(height: 32),
-
-              IndexedStack(
-                index: _selectedTab,
+              child: Row(
                 children: [
-                  _buildAddFriendForm(),
-                  _buildAddTopicForm(),
+                  Expanded(child: _buildTabButton(0, 'Friend', Icons.person_add_alt_1)),
+                  Expanded(child: _buildTabButton(1, 'Topic', Icons.tag)),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _selectedTab == 0 ? _buildAddFriendForm() : _buildAddTopicForm(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -172,6 +161,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
             Text(
               label,
               style: TextStyle(
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey,
               ),

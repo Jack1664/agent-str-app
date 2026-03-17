@@ -12,7 +12,7 @@ class DbHelper {
   }
 
   static Future<Database> _initDb() async {
-    String path = join(await getDatabasesPath(), 'agent_chat.db');
+    String path = join(await getDatabasesPath(), 'agent_chat_v2.db');
     return await openDatabase(
       path,
       version: 1,
@@ -20,6 +20,7 @@ class DbHelper {
         await db.execute('''
           CREATE TABLE messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            myAgentId TEXT,
             content TEXT,
             signature TEXT,
             senderPubKeyHex TEXT,
@@ -32,9 +33,10 @@ class DbHelper {
     );
   }
 
-  static Future<void> insertMessage(String peerId, ChatMessage msg) async {
+  static Future<void> insertMessage(String myAgentId, String peerId, ChatMessage msg) async {
     final db = await database;
     await db.insert('messages', {
+      'myAgentId': myAgentId,
       'content': msg.content,
       'signature': msg.signature,
       'senderPubKeyHex': msg.senderPubKeyHex,
@@ -44,12 +46,12 @@ class DbHelper {
     });
   }
 
-  static Future<List<ChatMessage>> getMessages(String peerId) async {
+  static Future<List<ChatMessage>> getMessages(String myAgentId, String peerId) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'messages',
-      where: 'peerPubKeyHex = ?',
-      whereArgs: [peerId],
+      where: 'myAgentId = ? AND peerPubKeyHex = ?',
+      whereArgs: [myAgentId, peerId],
       orderBy: 'timestamp ASC',
     );
 

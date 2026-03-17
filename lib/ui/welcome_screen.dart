@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'wallet_list_screen.dart';
+import 'main_navigation_screen.dart';
 import '../core/wallet_provider.dart';
 import 'dart:math' as math;
 
@@ -29,7 +29,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const WalletListScreen(),
+            pageBuilder: (context, animation, secondaryAnimation) => const MainNavigationScreen(),
             transitionsBuilder: (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },

@@ -50,6 +50,67 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
     }
   }
 
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Contact'),
+        content: Text('Are you sure you want to delete ${widget.friend.alias}? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+              final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+              if (walletProvider.activeWallet != null) {
+                await chatProvider.deleteFriend(walletProvider.activeWallet!.id, widget.friend.pubKeyHex);
+                if (mounted) {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmBlacklist() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(widget.friend.isBlacklisted ? 'Unblock Contact' : 'Block Contact'),
+        content: Text(widget.friend.isBlacklisted
+          ? 'Do you want to unblock ${widget.friend.alias}?'
+          : 'Are you sure you want to block ${widget.friend.alias}? You will no longer receive messages from them.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+              final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+              if (walletProvider.activeWallet != null) {
+                await chatProvider.toggleBlacklist(walletProvider.activeWallet!.id, widget.friend.pubKeyHex);
+                if (mounted) {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: Text(widget.friend.isBlacklisted ? 'Unblock' : 'Block', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatTimestamp(int timestamp) {
     final dt = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final y = dt.year;
@@ -141,13 +202,30 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: SwitchListTile(
-                title: const Text('Pin to Top', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                subtitle: const Text('Keep this chat at the top of the list', style: TextStyle(fontSize: 12)),
-                value: _isPinned,
-                activeColor: const Color(0xFF00D1C1),
-                onChanged: (v) => setState(() => _isPinned = v),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Pin to Top', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    subtitle: const Text('Keep this chat at the top of the list', style: TextStyle(fontSize: 12)),
+                    value: _isPinned,
+                    activeColor: const Color(0xFF00D1C1),
+                    onChanged: (v) => setState(() => _isPinned = v),
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.block_flipped, color: Colors.orange),
+                    title: Text(widget.friend.isBlacklisted ? 'Unblock Contact' : 'Block Contact', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w500)),
+                    onTap: _confirmBlacklist,
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                    title: const Text('Delete Contact', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w500)),
+                    onTap: _confirmDelete,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(16))),
+                  ),
+                ],
               ),
             ),
 
@@ -158,12 +236,13 @@ class _FriendInfoScreenState extends State<FriendInfoScreen> {
                 onPressed: _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A1A1A),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),

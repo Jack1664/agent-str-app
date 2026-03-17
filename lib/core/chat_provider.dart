@@ -80,6 +80,8 @@ class ChatProvider with ChangeNotifier {
   Timer? _reconnectTimer;
   int _reconnectAttempts = 0;
   String? _lastUsedUrl;
+  String _agentsUrl = 'http://112.126.60.140:8765/api/agents';
+  String _topicsUrl = 'http://112.126.60.140:8765/api/topics';
   Wallet? _lastUsedWallet;
 
   // --- Getters ---
@@ -90,6 +92,8 @@ class ChatProvider with ChangeNotifier {
   Map<String, dynamic>? get lastChallenge => _lastChallenge;
 
   String? get lastUsedUrl => _lastUsedUrl;
+  String get agentsUrl => _agentsUrl;
+  String get topicsUrl => _topicsUrl;
   Wallet? get lastUsedWallet => _lastUsedWallet;
 
   ed.PrivateKey? get activePrivateKey => _activePrivateKey;
@@ -101,12 +105,21 @@ class ChatProvider with ChangeNotifier {
   List<FriendRequest> get pendingRequests => _pendingRequests;
 
   static const String _relayUrlKeyPrefix = 'relay_url_';
-  static const String _friendsKeyPrefix = 'friends_';
-  static const String _topicsKeyPrefix = 'my_topics_';
+  static const String _agentsUrlKeyPrefix = 'agents_url_';
+  static const String _topicsUrlKeyPrefix = 'topics_url_';
+  static const String _friendsKeyPrefix = 'friends_v2_';
+  static const String _topicsKeyPrefix = 'my_topics_v2_';
 
   /// 连接到指定的 Relay 服务器
   Future<void> connect(String url, Wallet activeWallet) async {
-    if (_isConnecting) return;
+    if (_isConnecting && _lastUsedUrl == url && _lastUsedWallet?.agentId == activeWallet.agentId) return;
+
+    // 如果已经在连接其他钱包，先断开
+    if (_isConnected && _lastUsedWallet?.agentId != activeWallet.agentId) {
+       _channel?.sink.close();
+       _isConnected = false;
+       _isAuthenticated = false;
+    }
 
     // 格式化 URL
     String targetUrl = url.trim();
@@ -118,6 +131,7 @@ class ChatProvider with ChangeNotifier {
     _isConnecting = true;
     _isConnected = false;
     _isAuthenticated = false;
+    _activePrivateKey = null; // 重置私钥，等待重新派生
     notifyListeners();
 
     try {
@@ -141,7 +155,7 @@ class ChatProvider with ChangeNotifier {
       notifyListeners();
 
       Fluttertoast.showToast(
-        msg: "Connected to Relay",
+        msg: "Connected for ${activeWallet.name}",
         backgroundColor: Colors.green,
         gravity: ToastGravity.TOP,
       );
@@ -159,9 +173,9 @@ class ChatProvider with ChangeNotifier {
       });
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('${_relayUrlKeyPrefix}${activeWallet.id}', url);
-      await loadFriends(activeWallet.id);
-      await _loadMyTopics(activeWallet.id);
+      await prefs.setString('${_relayUrlKeyPrefix}${activeWallet.agentId}', url);
+      await loadFriends(activeWallet.agentId);
+      await _loadMyTopics(activeWallet.agentId);
 
     } catch (e) {
       debugPrint("连接失败: $e");
@@ -194,24 +208,18 @@ class ChatProvider with ChangeNotifier {
       final type = data['type'];
 
       if (type == 'challenge') {
-        // 收到服务器挑战请求，自动使用内存中的私钥或钱包中的私钥进行认证
         _lastChallenge = data;
         _autoAuthenticate(activeWallet);
         notifyListeners();
       } else if (type == 'connected') {
-        // 认证成功
         _isAuthenticated = true;
         _lastChallenge = null;
         _authCompleter?.complete(true);
         _authCompleter = null;
         notifyListeners();
-      } else if (type == 'pong') {
-        // 心跳响应
       } else if (type == 'deliver') {
-        // 收到投递的消息
         _handleDeliver(data, activeWallet);
       } else if (type == 'error') {
-        // 服务器返回错误
         _authCompleter?.complete(false);
         _authCompleter = null;
         Fluttertoast.showToast(
@@ -225,41 +233,29 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 自动进行身份认证 (去掉了密码依赖)
   Future<void> _autoAuthenticate(Wallet activeWallet) async {
     if (_lastChallenge == null) return;
-
-    // 如果内存中没有，从 activeWallet 的 seedHex 中派生
     if (_activePrivateKey == null) {
       final seed = Uint8List.fromList(HEX.decode(activeWallet.seedHex));
       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
     }
-
     final challengeStr = "AUTH|${_lastChallenge!['nonce']}|${_lastChallenge!['ts']}";
     final sig = CryptoUtil.signB64(_activePrivateKey!, challengeStr);
     final authPacket = {"type": "auth", "agent_id": activeWallet.agentId, "sig": sig};
     _channel!.sink.add(jsonEncode(authPacket));
   }
 
-  /// 处理收到的 deliver 类型消息（普通聊天或好友申请）
   Future<void> _handleDeliver(Map<String, dynamic> data, Wallet activeWallet) async {
     final event = data['event'];
     final sender = event['from'];
     final sig = data['sig'];
 
-    // 验证事件签名
     final payload = CryptoUtil.canonicalEventPayload(event);
     final isValid = CryptoUtil.verifySignature(payload, sig, sender);
+    if (!isValid) return;
 
-    if (!isValid) {
-      debugPrint("收到签名非法的事件，已丢弃");
-      return;
-    }
-
-    // 发送接收确认 (ACK)
     _sendAck(activeWallet.agentId, event);
 
-    // 如果是好友申请类型
     if (event['kind'] == 'friend_request') {
       if (!_friends.any((f) => f.pubKeyHex == sender)) {
         if (!_pendingRequests.any((r) => r.senderPubKey == sender)) {
@@ -273,27 +269,20 @@ class ChatProvider with ChangeNotifier {
       }
     }
 
-    // 如果是普通聊天或好友申请（也展示在聊天记录中）
     if (event['kind'] == 'message' || event['kind'] == 'friend_request') {
       final chatId = event['chat']['id'];
       final chatType = event['chat']['type'];
-
       String peerId = sender;
       if (chatType == 'topic') {
-        peerId = chatId; // 对于话题，直接使用话题 ID 作为消息 key
+        peerId = chatId;
       } else if (sender == activeWallet.agentId) {
-        // 如果是我自己发的（多端同步），解析对方是谁
         final parts = chatId.split(':');
         if (parts.length == 3 && parts[0] == 'dm') {
           peerId = (parts[1] == sender) ? parts[2] : parts[1];
         }
       }
 
-      // 去重逻辑：如果本地已存在该签名的消息，则不再添加
-      if (_messages.containsKey(peerId) && _messages[peerId]!.any((m) => m.signature == sig)) {
-        debugPrint("忽略重复推送的消息 (Sig: $sig)");
-        return;
-      }
+      if (_messages.containsKey(peerId) && _messages[peerId]!.any((m) => m.signature == sig)) return;
 
       final msg = ChatMessage(
         content: event['content'],
@@ -303,8 +292,7 @@ class ChatProvider with ChangeNotifier {
         isMine: sender == activeWallet.agentId,
       );
 
-      // 保存到本地数据库
-      await DbHelper.insertMessage(peerId, msg);
+      await DbHelper.insertMessage(activeWallet.agentId, peerId, msg);
 
       if (!_messages.containsKey(peerId)) _messages[peerId] = [];
       _messages[peerId]!.add(msg);
@@ -312,104 +300,95 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
-  /// 发送消息确认 (ACK) 回执
   void _sendAck(String agentId, Map<String, dynamic> sourceEvent) {
-    // 确保有私钥可用
     if (_activePrivateKey == null && _lastUsedWallet != null) {
        final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
        _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
     }
     if (_activePrivateKey == null) return;
-
-    final ackEvent = CryptoUtil.buildEvent(
-      agentId: agentId,
-      chat: sourceEvent['chat'],
-      kind: "ack",
-      content: sourceEvent['id'],
-    );
+    final ackEvent = CryptoUtil.buildEvent(agentId: agentId, chat: sourceEvent['chat'], kind: "ack", content: sourceEvent['id']);
     final payload = CryptoUtil.canonicalEventPayload(ackEvent);
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
     final packet = {"type": "event", "event": ackEvent, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
   }
 
-  /// 自动连接：加载本地数据并尝试连接上次使用的服务器
   Future<void> autoConnect(Wallet activeWallet) async {
     _lastUsedWallet = activeWallet;
-    await loadFriends(activeWallet.id);
-    await _loadMyTopics(activeWallet.id);
-    if (_isConnected) return;
+    // 重置内存状态，准备加载新钱包数据
+    _friends = [];
+    _myTopics = [];
+    _messages = {};
+    _pendingRequests = [];
 
     final prefs = await SharedPreferences.getInstance();
-    final savedUrl = prefs.getString('${_relayUrlKeyPrefix}${activeWallet.id}');
+    _agentsUrl = prefs.getString('${_agentsUrlKeyPrefix}${activeWallet.agentId}') ?? 'http://112.126.60.140:8765/api/agents';
+    _topicsUrl = prefs.getString('${_topicsUrlKeyPrefix}${activeWallet.agentId}') ?? 'http://112.126.60.140:8765/api/topics';
+
+    await loadFriends(activeWallet.agentId);
+    await _loadMyTopics(activeWallet.agentId);
+    notifyListeners();
+
+    final savedUrl = prefs.getString('${_relayUrlKeyPrefix}${activeWallet.agentId}');
     if (savedUrl != null && savedUrl.isNotEmpty) {
       await connect(savedUrl, activeWallet);
     }
   }
 
-  /// 从 SharedPreferences 加载数据
-  Future<void> loadFriends(String walletId) async {
+  Future<void> updateExploreUrls(String agentId, String agentsUrl, String topicsUrl) async {
+    _agentsUrl = agentsUrl;
+    _topicsUrl = topicsUrl;
     final prefs = await SharedPreferences.getInstance();
-    final String? friendsJson = prefs.getString('${_friendsKeyPrefix}$walletId');
+    await prefs.setString('${_agentsUrlKeyPrefix}$agentId', agentsUrl);
+    await prefs.setString('${_topicsUrlKeyPrefix}$agentId', topicsUrl);
+    notifyListeners();
+  }
+
+  Future<void> loadFriends(String agentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? friendsJson = prefs.getString('${_friendsKeyPrefix}$agentId');
     if (friendsJson != null) {
       final List<dynamic> decoded = jsonDecode(friendsJson);
       _friends = decoded.map((e) => Friend.fromJson(e)).toList();
-
-      // 加载每个好友的历史消息
       for (var friend in _friends) {
-        _messages[friend.pubKeyHex] = await DbHelper.getMessages(friend.pubKeyHex);
+        _messages[friend.pubKeyHex] = await DbHelper.getMessages(agentId, friend.pubKeyHex);
       }
     }
     notifyListeners();
   }
 
-  Future<void> _loadMyTopics(String walletId) async {
+  Future<void> _loadMyTopics(String agentId) async {
     final prefs = await SharedPreferences.getInstance();
-    final String? topicsJson = prefs.getString('${_topicsKeyPrefix}$walletId');
+    final String? topicsJson = prefs.getString('${_topicsKeyPrefix}$agentId');
     if (topicsJson != null) {
       final List<dynamic> decoded = jsonDecode(topicsJson);
       _myTopics = decoded.map((e) => TopicInfo.fromJson(e)).toList();
-
-      // 加载每个话题的历史消息
       for (var topic in _myTopics) {
-        _messages[topic.id] = await DbHelper.getMessages(topic.id);
+        _messages[topic.id] = await DbHelper.getMessages(agentId, topic.id);
       }
     }
     notifyListeners();
   }
 
-  /// 持久化数据
-  Future<void> _saveFriends(String walletId) async {
+  Future<void> _saveFriends(String agentId) async {
     final prefs = await SharedPreferences.getInstance();
     final String encoded = jsonEncode(_friends.map((e) => e.toJson()).toList());
-    await prefs.setString('${_friendsKeyPrefix}$walletId', encoded);
+    await prefs.setString('${_friendsKeyPrefix}$agentId', encoded);
   }
 
-  Future<void> _saveMyTopics(String walletId) async {
+  Future<void> _saveMyTopics(String agentId) async {
     final prefs = await SharedPreferences.getInstance();
     final String encoded = jsonEncode(_myTopics.map((e) => e.toJson()).toList());
-    await prefs.setString('${_topicsKeyPrefix}$walletId', encoded);
+    await prefs.setString('${_topicsKeyPrefix}$agentId', encoded);
   }
 
-  /// 统一处理连接断开逻辑
   void _handleDisconnect(String message) {
     _isConnected = false;
     _isAuthenticated = false;
     _isConnecting = false;
     notifyListeners();
-    debugPrint("连接断开: $message");
-
-    // 断开连接时也给个顶部提示
-    if (_lastUsedUrl != null) {
-      Fluttertoast.showToast(
-        msg: message,
-        gravity: ToastGravity.TOP,
-        backgroundColor: Colors.orangeAccent,
-      );
-    }
   }
 
-  /// 手动断开 WebSocket 连接
   void disconnect() {
     _lastUsedUrl = null;
     _reconnectTimer?.cancel();
@@ -418,34 +397,46 @@ class ChatProvider with ChangeNotifier {
     _activePrivateKey = null;
   }
 
-  // --- 好友管理 ---
-
   Future<void> addFriend(String walletId, String pubKeyHex, String alias) async {
+    if (_lastUsedWallet == null) return;
+    final agentId = _lastUsedWallet!.agentId;
     if (!_friends.any((f) => f.pubKeyHex == pubKeyHex)) {
       _friends.add(Friend(pubKeyHex: pubKeyHex, alias: alias));
-      await _saveFriends(walletId);
-
-      // 同时也尝试加载历史消息
-      _messages[pubKeyHex] = await DbHelper.getMessages(pubKeyHex);
-
+      await _saveFriends(agentId);
+      _messages[pubKeyHex] = await DbHelper.getMessages(agentId, pubKeyHex);
       notifyListeners();
     }
   }
 
   Future<void> updateFriendAlias(String walletId, String pubKeyHex, String newAlias) async {
+    if (_lastUsedWallet == null) return;
+    final agentId = _lastUsedWallet!.agentId;
     final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
     if (index != -1) {
       _friends[index].alias = newAlias;
-      await _saveFriends(walletId);
+      await _saveFriends(agentId);
       notifyListeners();
     }
   }
 
   Future<void> toggleFriendPin(String walletId, String pubKeyHex) async {
+    if (_lastUsedWallet == null) return;
+    final agentId = _lastUsedWallet!.agentId;
     final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
     if (index != -1) {
       _friends[index].isPinned = !_friends[index].isPinned;
-      await _saveFriends(walletId);
+      await _saveFriends(agentId);
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleBlacklist(String walletId, String pubKeyHex) async {
+    if (_lastUsedWallet == null) return;
+    final agentId = _lastUsedWallet!.agentId;
+    final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
+    if (index != -1) {
+      _friends[index].isBlacklisted = !_friends[index].isBlacklisted;
+      await _saveFriends(agentId);
       notifyListeners();
     }
   }
@@ -456,14 +447,8 @@ class ChatProvider with ChangeNotifier {
        _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
     }
     if (_activePrivateKey == null || _channel == null) return;
-
     final systemChat = {"id": "system:$agentId", "type": "system"};
-    final event = CryptoUtil.buildEvent(
-      agentId: agentId,
-      chat: systemChat,
-      kind: "acl_allow",
-      content: friendAgentId,
-    );
+    final event = CryptoUtil.buildEvent(agentId: agentId, chat: systemChat, kind: "acl_allow", content: friendAgentId);
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
@@ -477,104 +462,84 @@ class ChatProvider with ChangeNotifier {
 
   Future<void> acceptRequest(String walletId, String agentId, String senderPubKey) async {
     await allowAgent(agentId, senderPubKey);
-    final alias = "好友 ${senderPubKey.substring(0, 6)}";
+    final alias = "Friend ${senderPubKey.substring(0, 6)}";
     await addFriend(walletId, senderPubKey, alias);
     _pendingRequests.removeWhere((r) => r.senderPubKey == senderPubKey);
     notifyListeners();
   }
 
   Future<void> deleteFriend(String walletId, String pubKeyHex) async {
+    if (_lastUsedWallet == null) return;
+    final agentId = _lastUsedWallet!.agentId;
     _friends.removeWhere((f) => f.pubKeyHex == pubKeyHex);
-    await _saveFriends(walletId);
+    await _saveFriends(agentId);
     notifyListeners();
   }
 
-  Future<void> toggleBlacklist(String walletId, String pubKeyHex) async {
-    final index = _friends.indexWhere((f) => f.pubKeyHex == pubKeyHex);
-    if (index != -1) {
-      _friends[index].isBlacklisted = !_friends[index].isBlacklisted;
-      await _saveFriends(walletId);
-      notifyListeners();
-    }
-  }
-
-  // --- 话题 (Topics) 管理 ---
-
-  Future<void> subscribeTopic(String walletId, String agentId, String topicName, {String? alias}) async {
-    if (_activePrivateKey == null && _lastUsedWallet != null) {
-       final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
-       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
-    }
-    if (_activePrivateKey == null || _channel == null) return;
-
-    final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
-    final shortTitle = topicName.startsWith("topic:") ? topicName.substring(6) : topicName;
-
-    final topicChat = {"id": topicId, "type": "topic", "title": shortTitle};
-    final event = CryptoUtil.buildEvent(
-      agentId: agentId,
-      chat: topicChat,
-      kind: "chat_subscribe",
-      content: "",
-    );
-    final payload = CryptoUtil.canonicalEventPayload(event);
-    final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
-    final packet = {"type": "event", "event": event, "sig": sig};
-    _channel!.sink.add(jsonEncode(packet));
-
-    if (!_myTopics.any((t) => t.id == topicId)) {
-      _myTopics.add(TopicInfo(
-        id: topicId,
-        title: shortTitle,
-        alias: alias,
-        isSubscribed: true
-      ));
-      await _saveMyTopics(walletId);
-
-      // 尝试加载历史消息
-      _messages[topicId] = await DbHelper.getMessages(topicId);
-
-      notifyListeners();
-    }
-  }
-
   Future<void> updateTopicAlias(String walletId, String topicId, String newAlias) async {
+    if (_lastUsedWallet == null) return;
+    final agentId = _lastUsedWallet!.agentId;
     final index = _myTopics.indexWhere((t) => t.id == topicId);
     if (index != -1) {
       _myTopics[index].alias = newAlias;
-      await _saveMyTopics(walletId);
+      await _saveMyTopics(agentId);
       notifyListeners();
     }
   }
 
   Future<void> unsubscribeTopic(String walletId, String agentId, String topicName) async {
+    final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
+    final shortTitle = topicName.startsWith("topic:") ? topicName.substring(6) : topicName;
+
     if (_activePrivateKey == null && _lastUsedWallet != null) {
        final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
        _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
     }
-    if (_activePrivateKey == null || _channel == null) return;
 
-    final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
-    final shortTitle = topicName.startsWith("topic:") ? topicName.substring(6) : topicName;
-
-    final topicChat = {"id": topicId, "type": "topic", "title": shortTitle};
-    final event = CryptoUtil.buildEvent(
-      agentId: agentId,
-      chat: topicChat,
-      kind: "chat_subscribe",
-      content: "",
-    );
-    final payload = CryptoUtil.canonicalEventPayload(event);
-    final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
-    final packet = {"type": "event", "event": event, "sig": sig};
-    _channel!.sink.add(jsonEncode(packet));
+    if (_activePrivateKey != null && _channel != null) {
+      final topicChat = {"id": topicId, "type": "topic", "title": shortTitle};
+      final event = CryptoUtil.buildEvent(
+        agentId: agentId,
+        chat: topicChat,
+        kind: "chat_subscribe",
+        content: "",
+      );
+      final payload = CryptoUtil.canonicalEventPayload(event);
+      final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
+      final packet = {"type": "event", "event": event, "sig": sig};
+      _channel!.sink.add(jsonEncode(packet));
+    }
 
     _myTopics.removeWhere((t) => t.id == topicId);
-    await _saveMyTopics(walletId);
+    await _saveMyTopics(agentId);
     notifyListeners();
   }
 
-  // --- 消息发送 ---
+  Future<void> subscribeTopic(String walletId, String agentId, String topicName, {String? alias}) async {
+    final topicId = topicName.startsWith("topic:") ? topicName : "topic:$topicName";
+    final shortTitle = topicName.startsWith("topic:") ? topicName.substring(6) : topicName;
+
+    if (_activePrivateKey == null && _lastUsedWallet != null) {
+       final seed = Uint8List.fromList(HEX.decode(_lastUsedWallet!.seedHex));
+       _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
+    }
+
+    if (_activePrivateKey != null && _channel != null) {
+      final topicChat = {"id": topicId, "type": "topic", "title": shortTitle};
+      final event = CryptoUtil.buildEvent(agentId: agentId, chat: topicChat, kind: "chat_subscribe", content: "");
+      final payload = CryptoUtil.canonicalEventPayload(event);
+      final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
+      final packet = {"type": "event", "event": event, "sig": sig};
+      _channel!.sink.add(jsonEncode(packet));
+    }
+
+    if (!_myTopics.any((t) => t.id == topicId)) {
+      _myTopics.add(TopicInfo(id: topicId, title: shortTitle, alias: alias, isSubscribed: true));
+      await _saveMyTopics(agentId);
+      _messages[topicId] = await DbHelper.getMessages(agentId, topicId);
+      notifyListeners();
+    }
+  }
 
   Future<void> sendFriendRequest(String agentId, String peerId, String content) async {
     if (_activePrivateKey == null && _lastUsedWallet != null) {
@@ -582,19 +547,14 @@ class ChatProvider with ChangeNotifier {
        _activePrivateKey = CryptoUtil.deriveKeyPair(seed).privateKey;
     }
     if (!_isAuthenticated || _channel == null || _activePrivateKey == null) return;
-
     final chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");
     final event = CryptoUtil.buildEvent(agentId: agentId, chat: chat, kind: "friend_request", content: content);
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(_activePrivateKey!, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
-
     final msg = ChatMessage(content: content, signature: sig, senderPubKeyHex: agentId, timestamp: event['created_at'] * 1000, isMine: true);
-
-    // 保存到本地数据库
-    await DbHelper.insertMessage(peerId, msg);
-
+    await DbHelper.insertMessage(agentId, peerId, msg);
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();
@@ -603,7 +563,6 @@ class ChatProvider with ChangeNotifier {
   Future<void> sendMessage(String content, ed.PrivateKey privateKey, String agentId, String peerId, {String chatType = "dm"}) async {
     if (!_isAuthenticated || _channel == null) return;
     _activePrivateKey = privateKey;
-
     Map<String, dynamic> chat;
     if (chatType == "topic") {
       final topicName = peerId.startsWith("topic:") ? peerId.substring(6) : peerId;
@@ -611,18 +570,13 @@ class ChatProvider with ChangeNotifier {
     } else {
       chat = CryptoUtil.buildChat(agentId: agentId, peerId: peerId, chatType: "dm");
     }
-
     final event = CryptoUtil.buildEvent(agentId: agentId, chat: chat, kind: "message", content: content);
     final payload = CryptoUtil.canonicalEventPayload(event);
     final sig = CryptoUtil.signB64(privateKey, payload);
     final packet = {"type": "event", "event": event, "sig": sig};
     _channel!.sink.add(jsonEncode(packet));
-
     final msg = ChatMessage(content: content, signature: sig, senderPubKeyHex: agentId, timestamp: event['created_at'] * 1000, isMine: true);
-
-    // 保存到本地数据库
-    await DbHelper.insertMessage(peerId, msg);
-
+    await DbHelper.insertMessage(agentId, peerId, msg);
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];
     _messages[peerId]!.add(msg);
     notifyListeners();

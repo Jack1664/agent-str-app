@@ -8,6 +8,22 @@ import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
 import '../models/friend.dart';
 
+class ExploreScreen extends StatelessWidget {
+  const ExploreScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F8FA),
+      appBar: AppBar(
+        title: const Text('Explore', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+      ),
+      body: const ExploreWidget(),
+    );
+  }
+}
+
 class ExploreWidget extends StatefulWidget {
   const ExploreWidget({Key? key}) : super(key: key);
 
@@ -30,9 +46,10 @@ class _ExploreWidgetState extends State<ExploreWidget> {
   Future<void> _fetchData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     try {
       if (_selectedTab == 0) {
-        final response = await http.get(Uri.parse('http://112.126.60.140:8765/api/agents'));
+        final response = await http.get(Uri.parse(chatProvider.agentsUrl));
         if (response.statusCode == 200) {
           if (mounted) {
             final data = json.decode(response.body);
@@ -52,7 +69,7 @@ class _ExploreWidgetState extends State<ExploreWidget> {
           }
         }
       } else {
-        final response = await http.get(Uri.parse('http://112.126.60.140:8765/api/topics'));
+        final response = await http.get(Uri.parse(chatProvider.topicsUrl));
         if (response.statusCode == 200) {
           if (mounted) {
             final data = json.decode(response.body);
@@ -247,8 +264,9 @@ class _ExploreWidgetState extends State<ExploreWidget> {
 
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF6F8FA),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -279,7 +297,7 @@ class _ExploreWidgetState extends State<ExploreWidget> {
             ),
             title: Row(
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
                 const SizedBox(width: 8),
                 if (isOnline)
                   Container(
@@ -362,8 +380,9 @@ class _ExploreWidgetState extends State<ExploreWidget> {
 
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF6F8FA),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(20),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

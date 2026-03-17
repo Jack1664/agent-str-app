@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/wallet_provider.dart';
+import '../core/chat_provider.dart';
 import 'create_wallet_screen.dart';
-import 'wallet_home_screen.dart';
+import 'main_navigation_screen.dart';
 import 'wallet_detail_screen.dart';
 
 class WalletListScreen extends StatelessWidget {
@@ -12,12 +13,17 @@ class WalletListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final walletProvider = Provider.of<WalletProvider>(context);
     final wallets = walletProvider.wallets;
+    final canPop = Navigator.of(context).canPop();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         title: const Text('My Wallets'),
         centerTitle: true,
+        leading: canPop ? IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ) : null,
       ),
       body: wallets.isEmpty
           ? Center(
@@ -88,21 +94,33 @@ class WalletListScreen extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 final wallet = wallets[index];
+                final bool isActive = walletProvider.activeWallet?.id == wallet.id;
+
                 return GestureDetector(
                   onTap: () {
                     walletProvider.setActiveWallet(wallet);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const WalletHomeScreen()),
-                    );
+                    Provider.of<ChatProvider>(context, listen: false).autoConnect(wallet);
+                    if (canPop) {
+                      Navigator.of(context).pop();
+                    } else {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+                      );
+                    }
                   },
                   child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
+                      border: isActive
+                        ? Border.all(color: const Color(0xFF00D1C1), width: 2)
+                        : Border.all(color: Colors.transparent, width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: isActive
+                            ? const Color(0xFF00D1C1).withOpacity(0.1)
+                            : Colors.black.withOpacity(0.03),
                           blurRadius: 15,
                           offset: const Offset(0, 6),
                         )
@@ -117,7 +135,11 @@ class WalletListScreen extends StatelessWidget {
                             color: const Color(0xFF00D1C1).withOpacity(0.08),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF00D1C1), size: 28),
+                          child: Icon(
+                            isActive ? Icons.check_circle_rounded : Icons.account_balance_wallet_rounded,
+                            color: const Color(0xFF00D1C1),
+                            size: 28
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -144,6 +166,23 @@ class WalletListScreen extends StatelessWidget {
                             ],
                           ),
                         ),
+                        if (isActive)
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00D1C1).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'ACTIVE',
+                              style: TextStyle(
+                                color: Color(0xFF00D1C1),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(

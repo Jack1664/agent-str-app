@@ -16,6 +16,11 @@ class WalletProvider with ChangeNotifier {
     if (walletsJson != null) {
       final List<dynamic> decoded = jsonDecode(walletsJson);
       _wallets = decoded.map((e) => Wallet.fromJson(e)).toList();
+
+      // Auto-set the first wallet as active if none is set
+      if (_wallets.isNotEmpty && _activeWallet == null) {
+        _activeWallet = _wallets[0];
+      }
     } else {
       _wallets = [];
     }
