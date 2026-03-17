@@ -7,7 +7,7 @@ import '../models/friend.dart';
 import 'chat_screen.dart';
 import 'add_friend_screen.dart';
 import 'topic_chat_screen.dart';
-import 'wallet_list_screen.dart';
+import 'create_wallet_screen.dart';
 
 class ChatsPage extends StatefulWidget {
   const ChatsPage({Key? key}) : super(key: key);
@@ -301,12 +301,12 @@ class _ChatsPageState extends State<ChatsPage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const WalletListScreen(),
+                          builder: (_) => const CreateWalletScreen(),
                         ),
                       );
                     },
                     child: const Text(
-                      'Go to My Wallets',
+                      'Create Wallet',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
