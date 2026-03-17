@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
+import '../models/chat_message.dart';
 import '../models/friend.dart';
 import 'chat_screen.dart';
 import 'add_friend_screen.dart';
@@ -51,7 +52,10 @@ class _ChatsPageState extends State<ChatsPage> {
           children: [
             Icon(Icons.settings_outlined, color: Color(0xFF00D1C1)),
             SizedBox(width: 12),
-            Text('Relay & API Config', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Relay & API Config',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: SingleChildScrollView(
@@ -59,8 +63,17 @@ class _ChatsPageState extends State<ChatsPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatusItem('Status', chatProvider.isConnected ? (chatProvider.isAuthenticated ? 'Connected & Verified' : 'Connected (Pending Auth)') : 'Disconnected',
-                color: chatProvider.isAuthenticated ? Colors.green : (chatProvider.isConnected ? Colors.orange : Colors.red)),
+              _buildStatusItem(
+                'Status',
+                chatProvider.isConnected
+                    ? (chatProvider.isAuthenticated
+                          ? 'Connected & Verified'
+                          : 'Connected (Pending Auth)')
+                    : 'Disconnected',
+                color: chatProvider.isAuthenticated
+                    ? Colors.green
+                    : (chatProvider.isConnected ? Colors.orange : Colors.red),
+              ),
               const SizedBox(height: 20),
               _buildInputLabel('RELAY WEBSOCKET URL'),
               const SizedBox(height: 8),
@@ -70,7 +83,10 @@ class _ChatsPageState extends State<ChatsPage> {
                   hintText: 'ws://...',
                   filled: true,
                   fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -82,7 +98,10 @@ class _ChatsPageState extends State<ChatsPage> {
                   hintText: 'http://...',
                   filled: true,
                   fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -94,7 +113,10 @@ class _ChatsPageState extends State<ChatsPage> {
                   hintText: 'http://...',
                   filled: true,
                   fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ],
@@ -107,23 +129,35 @@ class _ChatsPageState extends State<ChatsPage> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
                   onPressed: () async {
-                    final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
+                    final wallet = Provider.of<WalletProvider>(
+                      context,
+                      listen: false,
+                    ).activeWallet!;
                     // Update explore URLs
                     await chatProvider.updateExploreUrls(
                       wallet.agentId,
                       _agentsUrlController.text.trim(),
-                      _topicsUrlController.text.trim()
+                      _topicsUrlController.text.trim(),
                     );
                     // Reconnect if URL changed or currently disconnected
                     if (_urlController.text.trim().isNotEmpty) {
-                      await chatProvider.connect(_urlController.text.trim(), wallet);
+                      await chatProvider.connect(
+                        _urlController.text.trim(),
+                        wallet,
+                      );
                     }
                     Navigator.pop(context);
                   },
@@ -131,9 +165,14 @@ class _ChatsPageState extends State<ChatsPage> {
                     backgroundColor: const Color(0xFF00D1C1),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('Connect', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Connect',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -144,16 +183,39 @@ class _ChatsPageState extends State<ChatsPage> {
   }
 
   Widget _buildInputLabel(String label) {
-    return Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 0.5));
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey.shade500,
+        letterSpacing: 0.5,
+      ),
+    );
   }
 
   Widget _buildStatusItem(String label, String value, {Color? color}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade500,
+            letterSpacing: 1,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: color ?? const Color(0xFF1A1A1A))),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: color ?? const Color(0xFF1A1A1A),
+          ),
+        ),
       ],
     );
   }
@@ -174,7 +236,10 @@ class _ChatsPageState extends State<ChatsPage> {
       return Scaffold(
         backgroundColor: const Color(0xFFF6F8FA),
         appBar: AppBar(
-          title: const Text('Chats', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          title: const Text(
+            'Chats',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
         ),
         body: Center(
           child: Padding(
@@ -187,20 +252,38 @@ class _ChatsPageState extends State<ChatsPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))],
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.account_balance_wallet_outlined, size: 64, color: Color(0xFF00D1C1)),
+                  child: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 64,
+                    color: Color(0xFF00D1C1),
+                  ),
                 ),
                 const SizedBox(height: 32),
                 const Text(
                   'No Wallet Found',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Please create or import a wallet to start messaging.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.5),
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey.shade600,
+                    height: 1.5,
+                  ),
                 ),
                 const SizedBox(height: 40),
                 SizedBox(
@@ -210,15 +293,25 @@ class _ChatsPageState extends State<ChatsPage> {
                       backgroundColor: const Color(0xFF00D1C1),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                       elevation: 0,
                     ),
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const WalletListScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const WalletListScreen(),
+                        ),
                       );
                     },
-                    child: const Text('Go to My Wallets', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Go to My Wallets',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -233,17 +326,29 @@ class _ChatsPageState extends State<ChatsPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(
-            chatProvider.isConnected ? (chatProvider.isAuthenticated ? Icons.cloud_done : Icons.cloud_queue) : Icons.cloud_off,
-            color: chatProvider.isAuthenticated ? const Color(0xFF00D1C1) : (chatProvider.isConnected ? Colors.orange : Colors.grey),
+            chatProvider.isConnected
+                ? (chatProvider.isAuthenticated
+                      ? Icons.cloud_done
+                      : Icons.cloud_queue)
+                : Icons.cloud_off,
+            color: chatProvider.isAuthenticated
+                ? const Color(0xFF00D1C1)
+                : (chatProvider.isConnected ? Colors.orange : Colors.grey),
           ),
           onPressed: () => _showConnectionStatus(chatProvider),
         ),
-        title: const Text('Chats', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Chats',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded, size: 28),
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const AddFriendScreen()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+              );
             },
           ),
           const SizedBox(width: 8),
@@ -252,7 +357,10 @@ class _ChatsPageState extends State<ChatsPage> {
       body: Column(
         children: [
           if (chatProvider.isConnecting)
-            LinearProgressIndicator(backgroundColor: Colors.transparent, color: const Color(0xFF00D1C1).withOpacity(0.5)),
+            LinearProgressIndicator(
+              backgroundColor: Colors.transparent,
+              color: const Color(0xFF00D1C1).withOpacity(0.5),
+            ),
 
           Expanded(
             child: _buildCombinedList(chatProvider, wallet.id, wallet.agentId),
@@ -262,7 +370,11 @@ class _ChatsPageState extends State<ChatsPage> {
     );
   }
 
-  Widget _buildCombinedList(ChatProvider chatProvider, String walletId, String agentId) {
+  Widget _buildCombinedList(
+    ChatProvider chatProvider,
+    String walletId,
+    String agentId,
+  ) {
     final pending = chatProvider.pendingRequests;
     final friends = chatProvider.friends;
     final topics = chatProvider.myTopics;
@@ -272,14 +384,21 @@ class _ChatsPageState extends State<ChatsPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade300),
+            Icon(
+              Icons.chat_bubble_outline,
+              size: 64,
+              color: Colors.grey.shade300,
+            ),
             const SizedBox(height: 16),
             const Text('No chats yet', style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddFriendScreen())),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+              ),
               child: const Text('Add Friend or Topic'),
-            )
+            ),
           ],
         ),
       );
@@ -304,25 +423,50 @@ class _ChatsPageState extends State<ChatsPage> {
       itemCount: pending.length + combinedList.length,
       itemBuilder: (context, index) {
         if (index < pending.length) {
-          return _buildPendingRequestItem(pending[index], chatProvider, walletId, agentId);
+          return _buildPendingRequestItem(
+            pending[index],
+            chatProvider,
+            walletId,
+            agentId,
+          );
         }
         final item = combinedList[index - pending.length];
         if (item is Friend) {
+          final latestMessage = _getLatestMessagePreview(
+            chatProvider.messages[item.pubKeyHex],
+          );
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _buildFriendItem(item, chatProvider, walletId),
+            child: _buildFriendItem(
+              item,
+              chatProvider,
+              walletId,
+              latestMessage: latestMessage,
+            ),
           );
         } else {
+          final latestMessage = _getLatestMessagePreview(
+            chatProvider.messages[item.id],
+          );
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _buildTopicItem(item, chatProvider),
+            child: _buildTopicItem(
+              item,
+              chatProvider,
+              latestMessage: latestMessage,
+            ),
           );
         }
       },
     );
   }
 
-  Widget _buildPendingRequestItem(FriendRequest req, ChatProvider chatProvider, String walletId, String agentId) {
+  Widget _buildPendingRequestItem(
+    FriendRequest req,
+    ChatProvider chatProvider,
+    String walletId,
+    String agentId,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -340,13 +484,21 @@ class _ChatsPageState extends State<ChatsPage> {
           'Friend Request: ${req.senderPubKey.substring(0, 8)}...',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
-        subtitle: Text(req.content, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          req.content,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: const Icon(Icons.check_circle, color: Color(0xFF00D1C1)),
-              onPressed: () => chatProvider.acceptRequest(walletId, agentId, req.senderPubKey),
+              onPressed: () => chatProvider.acceptRequest(
+                walletId,
+                agentId,
+                req.senderPubKey,
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.cancel, color: Colors.redAccent),
@@ -358,47 +510,111 @@ class _ChatsPageState extends State<ChatsPage> {
     );
   }
 
-  Widget _buildFriendItem(Friend friend, ChatProvider chatProvider, String walletId) {
+  String? _getLatestMessagePreview(List<ChatMessage>? messages) {
+    if (messages == null || messages.isEmpty) return null;
+
+    final latest = messages.last;
+    final content = latest.content.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (content.isEmpty) return null;
+    return latest.isMine ? 'You: $content' : content;
+  }
+
+  Widget _buildFriendItem(
+    Friend friend,
+    ChatProvider chatProvider,
+    String walletId, {
+    String? latestMessage,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ListTile(
         leading: Stack(
           children: [
             CircleAvatar(
               backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
-              child: Text(friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?', style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold)),
+              child: Text(
+                friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?',
+                style: const TextStyle(
+                  color: Color(0xFF00D1C1),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             if (friend.isPinned)
-              Positioned(right: 0, bottom: 0, child: Icon(Icons.push_pin, size: 12, color: Colors.orange)),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Icon(Icons.push_pin, size: 12, color: Colors.orange),
+              ),
           ],
         ),
         title: Row(
           children: [
-            Expanded(child: Text(friend.alias, style: const TextStyle(fontWeight: FontWeight.bold))),
+            Expanded(
+              child: Text(
+                friend.alias,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(4)),
-              child: const Text('Friend', style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Friend',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
-        subtitle: Text(friend.pubKeyHex.substring(0, 12) + '...', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(friend: friend))),
-        onLongPress: () => _showFriendMenu(context, friend, chatProvider, walletId),
+        subtitle: Text(
+          latestMessage ?? '${friend.pubKeyHex.substring(0, 12)}...',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
+        ),
+        onLongPress: () =>
+            _showFriendMenu(context, friend, chatProvider, walletId),
       ),
     );
   }
 
-  Widget _buildTopicItem(TopicInfo topic, ChatProvider chatProvider) {
+  Widget _buildTopicItem(
+    TopicInfo topic,
+    ChatProvider chatProvider, {
+    String? latestMessage,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ListTile(
         leading: CircleAvatar(
@@ -407,30 +623,62 @@ class _ChatsPageState extends State<ChatsPage> {
         ),
         title: Row(
           children: [
-            Expanded(child: Text(topic.alias, style: const TextStyle(fontWeight: FontWeight.bold))),
+            Expanded(
+              child: Text(
+                topic.alias,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(4)),
-              child: const Text('Topic', style: TextStyle(fontSize: 10, color: Colors.purple, fontWeight: FontWeight.bold)),
+              decoration: BoxDecoration(
+                color: Colors.purple.shade50,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Topic',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.purple,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
-        subtitle: const Text('Group Conversation', style: TextStyle(fontSize: 12, color: Colors.grey)),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic))),
+        subtitle: Text(
+          latestMessage ?? 'Group Conversation',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
+        ),
       ),
     );
   }
 
-  void _showFriendMenu(BuildContext context, Friend friend, ChatProvider chatProvider, String walletId) {
+  void _showFriendMenu(
+    BuildContext context,
+    Friend friend,
+    ChatProvider chatProvider,
+    String walletId,
+  ) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(friend.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+              leading: Icon(
+                friend.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+              ),
               title: Text(friend.isPinned ? 'Unpin' : 'Pin to Top'),
               onTap: () {
                 chatProvider.toggleFriendPin(walletId, friend.pubKeyHex);
@@ -439,7 +687,10 @@ class _ChatsPageState extends State<ChatsPage> {
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete Contact', style: TextStyle(color: Colors.red)),
+              title: const Text(
+                'Delete Contact',
+                style: TextStyle(color: Colors.red),
+              ),
               onTap: () {
                 chatProvider.deleteFriend(walletId, friend.pubKeyHex);
                 Navigator.pop(context);

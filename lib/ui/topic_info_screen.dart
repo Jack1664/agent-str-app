@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
+import 'widgets/top_notice.dart';
 
 class TopicInfoScreen extends StatefulWidget {
   final TopicInfo topic;
@@ -30,17 +30,16 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
     final walletId = walletProvider.activeWallet!.id;
 
     if (_aliasController.text != widget.topic.alias) {
-      await chatProvider.updateTopicAlias(walletId, widget.topic.id, _aliasController.text.trim());
+      await chatProvider.updateTopicAlias(
+        walletId,
+        widget.topic.id,
+        _aliasController.text.trim(),
+      );
     }
 
     if (mounted) {
       Navigator.pop(context);
-      Fluttertoast.showToast(
-        msg: "Topic alias updated",
-        gravity: ToastGravity.TOP,
-        backgroundColor: const Color(0xFF00D1C1),
-        textColor: Colors.white,
-      );
+      TopNotice.show('Topic alias updated');
     }
   }
 
@@ -51,8 +50,13 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Unsubscribe Topic?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to leave ${widget.topic.alias}? You will no longer receive messages from this topic.'),
+        title: const Text(
+          'Unsubscribe Topic?',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to leave ${widget.topic.alias}? You will no longer receive messages from this topic.',
+        ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           Row(
@@ -62,21 +66,39 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
                   onPressed: () async {
-                    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-                    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+                    final chatProvider = Provider.of<ChatProvider>(
+                      context,
+                      listen: false,
+                    );
+                    final walletProvider = Provider.of<WalletProvider>(
+                      context,
+                      listen: false,
+                    );
                     final activeWallet = walletProvider.activeWallet;
 
                     if (activeWallet != null) {
-                      await chatProvider.unsubscribeTopic(activeWallet.id, activeWallet.agentId, widget.topic.id);
+                      await chatProvider.unsubscribeTopic(
+                        activeWallet.id,
+                        activeWallet.agentId,
+                        widget.topic.id,
+                      );
                       if (mounted) {
                         Navigator.pop(context); // Close dialog
                         Navigator.pop(context); // Exit Info screen
@@ -89,9 +111,14 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text('Unsubscribe', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Unsubscribe',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -120,8 +147,14 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                 radius: 40,
                 backgroundColor: const Color(0xFF1A1A1A).withOpacity(0.1),
                 child: Text(
-                  widget.topic.alias.isNotEmpty ? widget.topic.alias[0].toUpperCase() : '#',
-                  style: const TextStyle(fontSize: 32, color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold),
+                  widget.topic.alias.isNotEmpty
+                      ? widget.topic.alias[0].toUpperCase()
+                      : '#',
+                  style: const TextStyle(
+                    fontSize: 32,
+                    color: Color(0xFF1A1A1A),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -141,21 +174,24 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                   Expanded(
                     child: SelectableText(
                       widget.topic.id,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 14, color: Colors.black54),
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 14,
+                        color: Colors.black54,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
                     onTap: () {
                       Clipboard.setData(ClipboardData(text: widget.topic.id));
-                      Fluttertoast.showToast(
-                        msg: "Topic ID copied to clipboard",
-                        gravity: ToastGravity.TOP,
-                        backgroundColor: const Color(0xFF00D1C1),
-                        textColor: Colors.white,
-                      );
+                      TopNotice.show('Topic ID copied to clipboard');
                     },
-                    child: const Icon(Icons.copy_rounded, size: 20, color: Color(0xFF00D1C1)),
+                    child: const Icon(
+                      Icons.copy_rounded,
+                      size: 20,
+                      color: Color(0xFF00D1C1),
+                    ),
                   ),
                 ],
               ),
@@ -175,7 +211,10 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
               ),
             ),
 
@@ -188,9 +227,17 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00D1C1),
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Save Changes',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
 
@@ -204,9 +251,14 @@ class _TopicInfoScreenState extends State<TopicInfoScreen> {
                   foregroundColor: Colors.redAccent,
                   side: const BorderSide(color: Colors.redAccent),
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-                child: const Text('Unsubscribe Topic', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Unsubscribe Topic',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
+import 'widgets/top_notice.dart';
 import '../core/crypto_util.dart';
 import '../models/wallet.dart';
 import '../models/friend.dart';
@@ -18,7 +19,9 @@ class WalletHomeScreen extends StatefulWidget {
 }
 
 class _WalletHomeScreenState extends State<WalletHomeScreen> {
-  final _urlController = TextEditingController(text: 'ws://112.126.60.140:8765/ws/agent');
+  final _urlController = TextEditingController(
+    text: 'ws://112.126.60.140:8765/ws/agent',
+  );
 
   @override
   void initState() {
@@ -47,21 +50,36 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           children: [
             Icon(Icons.info_outline_rounded, color: Color(0xFF00D1C1)),
             SizedBox(width: 12),
-            Text('Relay Status', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Relay Status',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatusItem('Status', chatProvider.isConnected ? (chatProvider.isAuthenticated ? 'Connected & Verified' : 'Connected (Pending Auth)') : 'Disconnected',
-              color: chatProvider.isAuthenticated ? Colors.green : (chatProvider.isConnected ? Colors.orange : Colors.red)),
+            _buildStatusItem(
+              'Status',
+              chatProvider.isConnected
+                  ? (chatProvider.isAuthenticated
+                        ? 'Connected & Verified'
+                        : 'Connected (Pending Auth)')
+                  : 'Disconnected',
+              color: chatProvider.isAuthenticated
+                  ? Colors.green
+                  : (chatProvider.isConnected ? Colors.orange : Colors.red),
+            ),
             const SizedBox(height: 16),
             _buildStatusItem('Relay URL', chatProvider.lastUsedUrl ?? 'N/A'),
             if (chatProvider.isAuthenticated) ...[
               const SizedBox(height: 16),
-              _buildStatusItem('Active Agent', '${chatProvider.lastUsedWallet?.agentId.substring(0, 16)}...'),
-            ]
+              _buildStatusItem(
+                'Active Agent',
+                '${chatProvider.lastUsedWallet?.agentId.substring(0, 16)}...',
+              ),
+            ],
           ],
         ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -71,7 +89,13 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Close', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -86,9 +110,14 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text('Disconnect', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Disconnect',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -102,9 +131,24 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade500,
+            letterSpacing: 1,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: color ?? const Color(0xFF1A1A1A))),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: color ?? const Color(0xFF1A1A1A),
+          ),
+        ),
       ],
     );
   }
@@ -122,12 +166,17 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           child: AlertDialog(
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
             title: const Row(
               children: [
                 Icon(Icons.cloud_outlined, color: Color(0xFF00D1C1)),
                 const SizedBox(width: 12),
-                Text('Connect Relay', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'Connect Relay',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             content: Column(
@@ -145,7 +194,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                     hintText: 'ws://...',
                     filled: true,
                     fillColor: Colors.grey.shade50,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
                     prefixIcon: const Icon(Icons.link, size: 20),
                   ),
                 ),
@@ -158,15 +210,27 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
-                        Provider.of<ChatProvider>(context, listen: false).connect(_urlController.text.trim(), wallet);
+                        final wallet = Provider.of<WalletProvider>(
+                          context,
+                          listen: false,
+                        ).activeWallet!;
+                        Provider.of<ChatProvider>(
+                          context,
+                          listen: false,
+                        ).connect(_urlController.text.trim(), wallet);
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
@@ -174,9 +238,14 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
-                      child: const Text('Connect', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Connect',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ],
@@ -196,7 +265,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        title: const Text('Add Contact', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Add Contact',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,12 +281,20 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.vpn_key_outlined, size: 16, color: Colors.grey),
+                  const Icon(
+                    Icons.vpn_key_outlined,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       '${pubKeyHex.substring(0, 16)}...',
-                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Colors.black54),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                        color: Colors.black54,
+                      ),
                     ),
                   ),
                 ],
@@ -228,7 +308,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                 hintText: 'How should we call them?',
                 filled: true,
                 fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ],
@@ -238,19 +321,29 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           Row(
             children: [
               Expanded(
-                child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
                     if (aliasController.text.isNotEmpty) {
-                      final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
-                      Provider.of<ChatProvider>(context, listen: false).addFriend(walletId, pubKeyHex, aliasController.text);
+                      final walletId = Provider.of<WalletProvider>(
+                        context,
+                        listen: false,
+                      ).activeWallet!.id;
+                      Provider.of<ChatProvider>(
+                        context,
+                        listen: false,
+                      ).addFriend(walletId, pubKeyHex, aliasController.text);
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Friend added to Contacts'), behavior: SnackBarBehavior.floating),
-                      );
+                      TopNotice.show('Friend added to Contacts');
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -258,9 +351,14 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text('Save', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -275,7 +373,8 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
     final wallet = Provider.of<WalletProvider>(context).activeWallet;
     final chatProvider = Provider.of<ChatProvider>(context);
 
-    if (wallet == null) return const Scaffold(body: Center(child: Text('No active wallet.')));
+    if (wallet == null)
+      return const Scaffold(body: Center(child: Text('No active wallet.')));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
@@ -285,11 +384,18 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Wallet Chat', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Wallet Chat',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 2),
             Text(
               '${wallet.name} • ${wallet.agentAddress.substring(0, 8)}...',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w400),
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w400,
+              ),
             ),
           ],
         ),
@@ -297,15 +403,30 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           if (chatProvider.isConnecting)
             const Padding(
               padding: EdgeInsets.all(12.0),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00D1C1))),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFF00D1C1),
+                ),
+              ),
             )
           else
             IconButton(
               icon: Icon(
-                chatProvider.isConnected ? (chatProvider.isAuthenticated ? Icons.cloud_done : Icons.cloud_queue) : Icons.cloud_off,
-                color: chatProvider.isAuthenticated ? const Color(0xFF00D1C1) : (chatProvider.isConnected ? Colors.orange : Colors.grey),
+                chatProvider.isConnected
+                    ? (chatProvider.isAuthenticated
+                          ? Icons.cloud_done
+                          : Icons.cloud_queue)
+                    : Icons.cloud_off,
+                color: chatProvider.isAuthenticated
+                    ? const Color(0xFF00D1C1)
+                    : (chatProvider.isConnected ? Colors.orange : Colors.grey),
               ),
-              onPressed: chatProvider.isConnected ? () => _showConnectionStatus(chatProvider) : _connectRelay,
+              onPressed: chatProvider.isConnected
+                  ? () => _showConnectionStatus(chatProvider)
+                  : _connectRelay,
             ),
           const SizedBox(width: 8),
         ],
@@ -313,7 +434,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
       body: Column(
         children: [
           if (chatProvider.isConnecting)
-            LinearProgressIndicator(backgroundColor: Colors.transparent, color: const Color(0xFF00D1C1).withOpacity(0.5)),
+            LinearProgressIndicator(
+              backgroundColor: Colors.transparent,
+              color: const Color(0xFF00D1C1).withOpacity(0.5),
+            ),
           if (!chatProvider.isConnected && !chatProvider.isConnecting)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -324,12 +448,20 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange.shade800),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: Colors.orange.shade800,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Relay disconnected. Tap cloud icon to connect.',
-                      style: TextStyle(color: Colors.orange.shade800, fontSize: 13, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        color: Colors.orange.shade800,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -345,12 +477,20 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, size: 18, color: Colors.blue.shade800),
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: Colors.blue.shade800,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Authentication required. Please wait for automatic verification.',
-                      style: TextStyle(color: Colors.blue.shade800, fontSize: 13, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        color: Colors.blue.shade800,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -378,7 +518,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                       indicatorWeight: 3,
                       indicatorSize: TabBarIndicatorSize.label,
                       dividerColor: Colors.transparent,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                       tabs: const [
                         Tab(text: 'Friends'),
                         Tab(text: 'Topics'),
@@ -403,7 +546,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const AddFriendScreen()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+          );
         },
         backgroundColor: const Color(0xFF00D1C1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -430,7 +576,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           children: [
             Icon(Icons.people_outline, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text('No friends added yet', style: TextStyle(color: Colors.grey)),
+            const Text(
+              'No friends added yet',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -442,10 +591,17 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         if (pending.isNotEmpty) ...[
           const Text(
             'PENDING REQUESTS',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+              letterSpacing: 1.2,
+            ),
           ),
           const SizedBox(height: 12),
-          ...pending.map((req) => _buildPendingRequestItem(req, chatProvider, activeWallet)),
+          ...pending.map(
+            (req) => _buildPendingRequestItem(req, chatProvider, activeWallet),
+          ),
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 12),
@@ -453,19 +609,30 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         if (friends.isNotEmpty) ...[
           const Text(
             'YOUR FRIENDS',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+              letterSpacing: 1.2,
+            ),
           ),
           const SizedBox(height: 12),
-          ...friends.asMap().entries.map((entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildFriendItem(entry.value, chatProvider),
-              )),
+          ...friends.asMap().entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildFriendItem(entry.value, chatProvider),
+            ),
+          ),
         ],
       ],
     );
   }
 
-  Widget _buildPendingRequestItem(FriendRequest req, ChatProvider chatProvider, Wallet activeWallet) {
+  Widget _buildPendingRequestItem(
+    FriendRequest req,
+    ChatProvider chatProvider,
+    Wallet activeWallet,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -497,7 +664,11 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.check_circle, color: Color(0xFF00D1C1)),
-              onPressed: () => chatProvider.acceptRequest(activeWallet.id, activeWallet.agentId, req.senderPubKey),
+              onPressed: () => chatProvider.acceptRequest(
+                activeWallet.id,
+                activeWallet.agentId,
+                req.senderPubKey,
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.cancel, color: Colors.redAccent),
@@ -510,13 +681,21 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
   }
 
   Widget _buildFriendItem(Friend friend, ChatProvider chatProvider) {
-    final char = friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : (friend.pubKeyHex.isNotEmpty ? friend.pubKeyHex[0].toUpperCase() : '?');
+    final char = friend.alias.isNotEmpty
+        ? friend.alias[0].toUpperCase()
+        : (friend.pubKeyHex.isNotEmpty
+              ? friend.pubKeyHex[0].toUpperCase()
+              : '?');
 
     return Container(
       decoration: BoxDecoration(
-        color: friend.isPinned ? const Color(0xFF00D1C1).withOpacity(0.03) : const Color(0xFFF6F8FA),
+        color: friend.isPinned
+            ? const Color(0xFF00D1C1).withOpacity(0.03)
+            : const Color(0xFFF6F8FA),
         borderRadius: BorderRadius.circular(20),
-        border: friend.isPinned ? Border.all(color: const Color(0xFF00D1C1).withOpacity(0.1)) : null,
+        border: friend.isPinned
+            ? Border.all(color: const Color(0xFF00D1C1).withOpacity(0.1))
+            : null,
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -526,7 +705,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
               child: Text(
                 char,
-                style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Color(0xFF00D1C1),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             if (friend.isPinned)
@@ -535,16 +717,29 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                 bottom: 0,
                 child: Container(
                   padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(color: Color(0xFF00D1C1), shape: BoxShape.circle),
-                  child: const Icon(Icons.push_pin_rounded, size: 10, color: Colors.white),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF00D1C1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.push_pin_rounded,
+                    size: 10,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],
         ),
-        title: Text(friend.alias, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          friend.alias,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(
           friend.isBlacklisted ? 'Blacklisted' : 'Tap to start chat',
-          style: TextStyle(fontSize: 12, color: friend.isBlacklisted ? Colors.red : Colors.grey),
+          style: TextStyle(
+            fontSize: 12,
+            color: friend.isBlacklisted ? Colors.red : Colors.grey,
+          ),
         ),
         onTap: () {
           if (!friend.isBlacklisted) {
@@ -555,9 +750,14 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         },
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           onSelected: (value) async {
-            final walletId = Provider.of<WalletProvider>(context, listen: false).activeWallet!.id;
+            final walletId = Provider.of<WalletProvider>(
+              context,
+              listen: false,
+            ).activeWallet!.id;
             if (value == 'delete') {
               final confirm = await _showDeleteConfirm(friend.alias);
               if (confirm == true) {
@@ -574,7 +774,11 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               value: 'pin',
               child: Row(
                 children: [
-                  Icon(friend.isPinned ? Icons.push_pin_outlined : Icons.push_pin, size: 20, color: Colors.blue),
+                  Icon(
+                    friend.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                    size: 20,
+                    color: Colors.blue,
+                  ),
                   const SizedBox(width: 12),
                   Text(friend.isPinned ? 'Unpin' : 'Pin to Top'),
                 ],
@@ -594,7 +798,11 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
               value: 'delete',
               child: Row(
                 children: [
-                  Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                  Icon(
+                    Icons.delete_outline_rounded,
+                    size: 20,
+                    color: Colors.red,
+                  ),
                   SizedBox(width: 12),
                   Text('Delete', style: TextStyle(color: Colors.red)),
                 ],
@@ -614,20 +822,38 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Delete Contact?'),
-        content: Text('Are you sure you want to remove $alias from your friends?'),
+        content: Text(
+          'Are you sure you want to remove $alias from your friends?',
+        ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           Row(
             children: [
               Expanded(
-                child: TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -645,7 +871,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           children: [
             Icon(Icons.forum_outlined, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text('No topics subscribed', style: TextStyle(color: Colors.grey)),
+            const Text(
+              'No topics subscribed',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -663,17 +892,28 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
             leading: CircleAvatar(
               backgroundColor: const Color(0xFF1A1A1A),
               child: const Icon(Icons.tag, color: Colors.white, size: 18),
             ),
-            title: Text(topic.alias, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: const Text('Tap to open chat', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            title: Text(
+              topic.alias,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: const Text(
+              'Tap to open chat',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
+                MaterialPageRoute(
+                  builder: (_) => TopicChatScreen(topic: topic),
+                ),
               );
             },
           ),
@@ -690,7 +930,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
           children: [
             Icon(Icons.explore_outlined, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text('No active topics on relay', style: TextStyle(color: Colors.grey)),
+            const Text(
+              'No active topics on relay',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       );
@@ -709,7 +952,10 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
             borderRadius: BorderRadius.circular(20),
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
             leading: const CircleAvatar(
               backgroundColor: Color(0xFF1A1A1A),
               child: Icon(Icons.tag, color: Colors.white, size: 18),
@@ -722,13 +968,27 @@ class _WalletHomeScreenState extends State<WalletHomeScreen> {
                 ? const Icon(Icons.check_circle, color: Color(0xFF00D1C1))
                 : ElevatedButton(
                     onPressed: () {
-                      final wallet = Provider.of<WalletProvider>(context, listen: false).activeWallet!;
-                      chatProvider.subscribeTopic(wallet.id, wallet.agentId, topicId.startsWith("topic:") ? topicId.substring(6) : topicId);
+                      final wallet = Provider.of<WalletProvider>(
+                        context,
+                        listen: false,
+                      ).activeWallet!;
+                      chatProvider.subscribeTopic(
+                        wallet.id,
+                        wallet.agentId,
+                        topicId.startsWith("topic:")
+                            ? topicId.substring(6)
+                            : topicId,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 0,
+                      ),
                       minimumSize: const Size(0, 32),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     child: const Text('Join', style: TextStyle(fontSize: 12)),
                   ),

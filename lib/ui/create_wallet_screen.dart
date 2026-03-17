@@ -7,6 +7,7 @@ import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
 import '../core/chat_provider.dart';
 import '../models/wallet.dart';
+import 'widgets/top_notice.dart';
 
 class CreateWalletScreen extends StatefulWidget {
   const CreateWalletScreen({Key? key}) : super(key: key);
@@ -15,7 +16,8 @@ class CreateWalletScreen extends StatefulWidget {
   State<CreateWalletScreen> createState() => _CreateWalletScreenState();
 }
 
-class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTickerProviderStateMixin {
+class _CreateWalletScreenState extends State<CreateWalletScreen>
+    with SingleTickerProviderStateMixin {
   final _nameController = TextEditingController();
   final _privateKeyController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -49,7 +51,10 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
           seed = CryptoUtil.generateSeed();
         } else {
           // Mode: Import
-          final hexStr = _privateKeyController.text.trim().replaceAll(RegExp(r'\s+'), '');
+          final hexStr = _privateKeyController.text.trim().replaceAll(
+            RegExp(r'\s+'),
+            '',
+          );
           seed = Uint8List.fromList(HEX.decode(hexStr));
         }
 
@@ -66,7 +71,10 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
           agentAddress: agentAddress,
         );
 
-        final walletProvider = Provider.of<WalletProvider>(context, listen: false);
+        final walletProvider = Provider.of<WalletProvider>(
+          context,
+          listen: false,
+        );
         await walletProvider.addWallet(wallet);
 
         // Also auto-connect the chat provider for the new wallet
@@ -78,9 +86,7 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
           Navigator.of(context).pop();
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
-        );
+        TopNotice.show('Error: ${e.toString()}', backgroundColor: Colors.red);
       } finally {
         if (mounted) setState(() => _isProcessing = false);
       }
@@ -116,7 +122,11 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
                 child: CircleAvatar(
                   radius: 40,
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.account_balance_wallet_outlined, size: 40, color: Color(0xFF00D1C1)),
+                  child: Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 40,
+                    color: Color(0xFF00D1C1),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -128,7 +138,8 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
                 controller: _nameController,
                 hint: 'e.g. My Secure Wallet',
                 icon: Icons.badge_outlined,
-                validator: (v) => v == null || v.isEmpty ? 'Please enter a name' : null,
+                validator: (v) =>
+                    v == null || v.isEmpty ? 'Please enter a name' : null,
               ),
 
               const SizedBox(height: 20),
@@ -149,9 +160,14 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
                           icon: Icons.vpn_key_outlined,
                           maxLines: 3,
                           validator: (v) {
-                            if (v == null || v.isEmpty) return 'Enter your private key';
-                            final cleaned = v.trim().replaceAll(RegExp(r'\s+'), '');
-                            if (cleaned.length != 64) return 'Private key must be 64 characters';
+                            if (v == null || v.isEmpty)
+                              return 'Enter your private key';
+                            final cleaned = v.trim().replaceAll(
+                              RegExp(r'\s+'),
+                              '',
+                            );
+                            if (cleaned.length != 64)
+                              return 'Private key must be 64 characters';
                             try {
                               HEX.decode(cleaned);
                             } catch (e) {
@@ -173,7 +189,9 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   backgroundColor: const Color(0xFF00D1C1),
                 ),
                 onPressed: _isProcessing ? null : _saveWallet,
@@ -181,11 +199,20 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : Text(
-                        _tabController.index == 0 ? 'Generate & Save' : 'Import & Save',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        _tabController.index == 0
+                            ? 'Generate & Save'
+                            : 'Import & Save',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
               ),
 
@@ -205,7 +232,12 @@ class _CreateWalletScreenState extends State<CreateWalletScreen> with SingleTick
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500, letterSpacing: 1),
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        color: Colors.grey.shade500,
+        letterSpacing: 1,
+      ),
     );
   }
 

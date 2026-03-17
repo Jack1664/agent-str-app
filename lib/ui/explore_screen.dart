@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
 import '../models/friend.dart';
+import 'widgets/top_notice.dart';
 
 class ExploreScreen extends StatelessWidget {
   const ExploreScreen({Key? key}) : super(key: key);
@@ -16,7 +16,10 @@ class ExploreScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
-        title: const Text('Explore', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Explore',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
       ),
       body: const ExploreWidget(),
@@ -95,7 +98,8 @@ class _ExploreWidgetState extends State<ExploreWidget> {
 
     if (activeWallet != null) {
       final agentId = agent['agent_id'] ?? agent['id'];
-      final name = agent['name'] ?? 'Agent ${agentId.toString().substring(0, 6)}';
+      final name =
+          agent['name'] ?? 'Agent ${agentId.toString().substring(0, 6)}';
 
       await chatProvider.addFriend(activeWallet.id, agentId, name);
 
@@ -109,12 +113,7 @@ class _ExploreWidgetState extends State<ExploreWidget> {
       }
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: "Friend request sent to $name",
-          gravity: ToastGravity.TOP,
-          backgroundColor: const Color(0xFF00D1C1),
-          textColor: Colors.white,
-        );
+        TopNotice.show('Friend request sent to $name');
       }
     }
   }
@@ -136,12 +135,7 @@ class _ExploreWidgetState extends State<ExploreWidget> {
       );
 
       if (mounted) {
-        Fluttertoast.showToast(
-          msg: "Subscribed to topic: $topicName",
-          gravity: ToastGravity.TOP,
-          backgroundColor: const Color(0xFF00D1C1),
-          textColor: Colors.white,
-        );
+        TopNotice.show('Subscribed to topic: $topicName');
       }
     }
   }
@@ -163,20 +157,22 @@ class _ExploreWidgetState extends State<ExploreWidget> {
                 Expanded(
                   child: _buildTabButton(0, 'Friend', Icons.people_outline),
                 ),
-                Expanded(
-                  child: _buildTabButton(1, 'Topic', Icons.tag),
-                ),
+                Expanded(child: _buildTabButton(1, 'Topic', Icons.tag)),
               ],
             ),
           ),
         ),
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF00D1C1)))
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF00D1C1)),
+                )
               : RefreshIndicator(
                   onRefresh: _fetchData,
                   color: const Color(0xFF00D1C1),
-                  child: _selectedTab == 0 ? _buildAgentList() : _buildTopicList(),
+                  child: _selectedTab == 0
+                      ? _buildAgentList()
+                      : _buildTopicList(),
                 ),
         ),
       ],
@@ -202,13 +198,23 @@ class _ExploreWidgetState extends State<ExploreWidget> {
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           boxShadow: isSelected
-              ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
               : [],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey),
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? const Color(0xFF1A1A1A) : Colors.grey,
+            ),
             const SizedBox(width: 8),
             Text(
               label,
@@ -235,9 +241,16 @@ class _ExploreWidgetState extends State<ExploreWidget> {
           Center(
             child: Column(
               children: [
-                Icon(Icons.people_outline, size: 48, color: Colors.grey.shade300),
+                Icon(
+                  Icons.people_outline,
+                  size: 48,
+                  color: Colors.grey.shade300,
+                ),
                 const SizedBox(height: 16),
-                const Text('No agents found', style: TextStyle(color: Colors.grey)),
+                const Text(
+                  'No agents found',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -266,17 +279,25 @@ class _ExploreWidgetState extends State<ExploreWidget> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10),
+            ],
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
             leading: Stack(
               children: [
                 CircleAvatar(
                   backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
                   child: Text(
                     name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Color(0xFF00D1C1),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 if (isOnline)
@@ -297,31 +318,65 @@ class _ExploreWidgetState extends State<ExploreWidget> {
             ),
             title: Row(
               children: [
-                Expanded(child: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 const SizedBox(width: 8),
                 if (isOnline)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text('ONLINE', style: TextStyle(color: Colors.green, fontSize: 8, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'ONLINE',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
               ],
             ),
             subtitle: Text(
               id.length > 16 ? '${id.substring(0, 16)}...' : id,
-              style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'monospace'),
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                fontFamily: 'monospace',
+              ),
             ),
             trailing: existingFriend != null
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text('Added', style: TextStyle(color: Color(0xFF00D1C1), fontWeight: FontWeight.bold, fontSize: 12)),
+                      const Text(
+                        'Added',
+                        style: TextStyle(
+                          color: Color(0xFF00D1C1),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                       Text(
-                        DateFormat('MM-dd HH:mm').format(DateTime.fromMillisecondsSinceEpoch(existingFriend.createdAt)),
+                        DateFormat('MM-dd HH:mm').format(
+                          DateTime.fromMillisecondsSinceEpoch(
+                            existingFriend.createdAt,
+                          ),
+                        ),
                         style: const TextStyle(color: Colors.grey, fontSize: 9),
                       ),
                     ],
@@ -333,10 +388,18 @@ class _ExploreWidgetState extends State<ExploreWidget> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       minimumSize: const Size(60, 32),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    child: const Text(
+                      'Add',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
           ),
         );
@@ -357,7 +420,10 @@ class _ExploreWidgetState extends State<ExploreWidget> {
               children: [
                 Icon(Icons.tag, size: 48, color: Colors.grey.shade300),
                 const SizedBox(height: 16),
-                const Text('No topics found', style: TextStyle(color: Colors.grey)),
+                const Text(
+                  'No topics found',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -382,21 +448,36 @@ class _ExploreWidgetState extends State<ExploreWidget> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10),
+            ],
           ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
             leading: const CircleAvatar(
               backgroundColor: Color(0xFF1A1A1A),
               child: Icon(Icons.tag, color: Colors.white, size: 18),
             ),
-            title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            title: Text(
+              name,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
             subtitle: Text(
               '$subCount subscribers • $msgCount messages',
               style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
             trailing: isSubscribed
-                ? const Text('Subscribed', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 12))
+                ? const Text(
+                    'Subscribed',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  )
                 : ElevatedButton(
                     onPressed: () => _subscribeTopic(topic),
                     style: ElevatedButton.styleFrom(
@@ -404,10 +485,18 @@ class _ExploreWidgetState extends State<ExploreWidget> {
                       foregroundColor: Colors.white,
                       elevation: 0,
                       minimumSize: const Size(80, 32),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    child: const Text('Subscribe', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    child: const Text(
+                      'Subscribe',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
           ),
         );

@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../models/wallet.dart';
 import '../core/crypto_util.dart';
 import '../core/wallet_provider.dart';
+import 'widgets/top_notice.dart';
 
 class WalletDetailScreen extends StatefulWidget {
   final Wallet wallet;
@@ -17,16 +18,9 @@ class WalletDetailScreen extends StatefulWidget {
 }
 
 class _WalletDetailScreenState extends State<WalletDetailScreen> {
-
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label copied to clipboard'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF00D1C1),
-      ),
-    );
+    TopNotice.show('$label copied to clipboard');
   }
 
   void _showQrCode(String data, String title) {
@@ -40,7 +34,13 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -52,7 +52,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                       color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
-                    )
+                    ),
                   ],
                 ),
                 child: QrImageView(
@@ -76,9 +76,17 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF00D1C1),
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -95,7 +103,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('Delete Wallet?', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Delete Wallet?',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text(
           'This action cannot be undone. Make sure you have backed up your private key.',
           style: TextStyle(color: Colors.black54),
@@ -107,14 +118,23 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    Provider.of<WalletProvider>(context, listen: false).deleteWallet(widget.wallet.id);
+                    Provider.of<WalletProvider>(
+                      context,
+                      listen: false,
+                    ).deleteWallet(widget.wallet.id);
                     Navigator.pop(context); // Close dialog
                     Navigator.pop(context); // Back to wallet list
                   },
@@ -123,9 +143,14 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ],
@@ -144,7 +169,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.redAccent,
+            ),
             onPressed: _confirmDelete,
           ),
           const SizedBox(width: 8),
@@ -166,7 +194,7 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     color: const Color(0xFF00D1C1).withOpacity(0.3),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
-                  )
+                  ),
                 ],
               ),
               child: Column(
@@ -176,7 +204,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                     children: [
                       const CircleAvatar(
                         backgroundColor: Colors.white,
-                        child: Icon(Icons.wallet_rounded, color: Color(0xFF00D1C1)),
+                        child: Icon(
+                          Icons.wallet_rounded,
+                          color: Color(0xFF00D1C1),
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Text(
@@ -196,7 +227,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                   ),
                   const Text(
                     'Agent Str Main Network ',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -207,7 +242,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             _buildDataCard(
               content: widget.wallet.agentId,
               onCopy: () => _copyToClipboard(widget.wallet.agentId, 'Agent ID'),
-              onShowQr: () => _showQrCode(widget.wallet.agentId, 'Agent ID QR Code'),
+              onShowQr: () =>
+                  _showQrCode(widget.wallet.agentId, 'Agent ID QR Code'),
               color: Colors.white,
             ),
             const SizedBox(height: 24),
@@ -215,8 +251,10 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             const SizedBox(height: 12),
             _buildDataCard(
               content: widget.wallet.agentAddress,
-              onCopy: () => _copyToClipboard(widget.wallet.agentAddress, 'Agent Address'),
-              onShowQr: () => _showQrCode(widget.wallet.agentAddress, 'Address QR Code'),
+              onCopy: () =>
+                  _copyToClipboard(widget.wallet.agentAddress, 'Agent Address'),
+              onShowQr: () =>
+                  _showQrCode(widget.wallet.agentAddress, 'Address QR Code'),
               color: Colors.white,
             ),
             const SizedBox(height: 32),
@@ -224,7 +262,8 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             const SizedBox(height: 12),
             _buildDataCard(
               content: widget.wallet.seedHex,
-              onCopy: () => _copyToClipboard(widget.wallet.seedHex, 'Private Key'),
+              onCopy: () =>
+                  _copyToClipboard(widget.wallet.seedHex, 'Private Key'),
               color: Colors.red.shade50,
               isPrivate: true,
             ),
@@ -292,7 +331,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                           color: const Color(0xFFF6F8FA),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.copy_rounded, size: 20, color: Color(0xFF1A1A1A)),
+                        child: const Icon(
+                          Icons.copy_rounded,
+                          size: 20,
+                          color: Color(0xFF1A1A1A),
+                        ),
                       ),
                     ),
                   ),
@@ -309,7 +352,11 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
                             color: const Color(0xFFF6F8FA),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.qr_code_2_rounded, size: 20, color: Color(0xFF1A1A1A)),
+                          child: const Icon(
+                            Icons.qr_code_2_rounded,
+                            size: 20,
+                            color: Color(0xFF1A1A1A),
+                          ),
                         ),
                       ),
                     ),
@@ -324,17 +371,25 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red.shade700),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: 16,
+                  color: Colors.red.shade700,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Never share your private key. It provides full access to your identity.',
-                    style: TextStyle(color: Colors.red.shade700, fontSize: 11, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
-          ]
+          ],
         ],
       ),
     );
