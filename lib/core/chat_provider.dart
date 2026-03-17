@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:path/path.dart' as p;
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -778,6 +779,8 @@ class ChatProvider with ChangeNotifier {
     String peerId, {
     String chatType = "dm",
   }) async {
+    final fileName = p.basename(filePath);
+    final mimeType = _inferAudioMimeType(filePath);
     final totalSeconds = duration.inSeconds;
     final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
     final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
@@ -789,21 +792,43 @@ class ChatProvider with ChangeNotifier {
       agentId,
       peerId,
       chatType: chatType,
-      contentType: 'audio/aac',
+      contentType: mimeType,
       metadata: {
         'message_type': 'voice',
         'duration_ms': duration.inMilliseconds,
         'local_path': filePath,
-        'mime_type': 'audio/aac',
+        'uri': filePath,
+        'name': fileName,
+        'mime_type': mimeType,
       },
       attachments: [
         {
           'type': 'audio',
-          'mime_type': 'audio/aac',
+          'uri': filePath,
+          'name': fileName,
+          'mime_type': mimeType,
           'local_path': filePath,
           'duration_ms': duration.inMilliseconds,
         },
       ],
     );
+  }
+
+  String _inferAudioMimeType(String filePath) {
+    final ext = p.extension(filePath).toLowerCase();
+    switch (ext) {
+      case '.ogg':
+        return 'audio/ogg';
+      case '.mp3':
+        return 'audio/mpeg';
+      case '.wav':
+        return 'audio/wav';
+      case '.m4a':
+        return 'audio/mp4';
+      case '.aac':
+        return 'audio/aac';
+      default:
+        return 'audio/aac';
+    }
   }
 }

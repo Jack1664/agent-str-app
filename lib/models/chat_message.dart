@@ -49,6 +49,17 @@ class ChatMessage {
         : null;
   }
 
+  String? get audioUri {
+    final metadataUri = metadata['uri'];
+    if (metadataUri is String && metadataUri.isNotEmpty) return metadataUri;
+    final attachmentUri = attachments.isNotEmpty
+        ? attachments.first['uri']
+        : null;
+    return attachmentUri is String && attachmentUri.isNotEmpty
+        ? attachmentUri
+        : null;
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'content': content,

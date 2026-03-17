@@ -87,18 +87,10 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
   }
 
   Future<void> _prepare() async {
-    final path = widget.message.localAudioPath;
-    if (path == null || path.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-        });
-      }
-      return;
-    }
-
-    final file = File(path);
-    if (!file.existsSync()) {
+    final localPath = widget.message.localAudioPath;
+    final audioUri = widget.message.audioUri;
+    if ((localPath == null || localPath.isEmpty) &&
+        (audioUri == null || audioUri.isEmpty)) {
       if (mounted) {
         setState(() {
           _hasError = true;
@@ -108,7 +100,32 @@ class _VoiceMessageBubbleState extends State<VoiceMessageBubble> {
     }
 
     try {
-      final duration = await _player.setFilePath(path);
+      Duration? duration;
+      if (localPath != null && localPath.isNotEmpty) {
+        final file = File(localPath);
+        if (file.existsSync()) {
+          duration = await _player.setFilePath(localPath);
+        }
+      }
+
+      if (duration == null && audioUri != null && audioUri.isNotEmpty) {
+        final parsedUri = Uri.tryParse(audioUri);
+        if (parsedUri != null &&
+            parsedUri.hasScheme &&
+            (parsedUri.scheme == 'http' || parsedUri.scheme == 'https')) {
+          duration = await _player.setUrl(audioUri);
+        } else {
+          final fallbackFile = File(audioUri);
+          if (fallbackFile.existsSync()) {
+            duration = await _player.setFilePath(audioUri);
+          }
+        }
+      }
+
+      if (duration == null) {
+        throw StateError('Audio source unavailable');
+      }
+
       if (!mounted) return;
       setState(() {
         _isReady = true;
