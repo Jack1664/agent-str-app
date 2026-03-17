@@ -321,6 +321,15 @@ class ChatProvider with ChangeNotifier {
         senderPubKeyHex: sender,
         timestamp: event['created_at'] * 1000,
         isMine: sender == activeWallet.agentId,
+        contentType: event['content_type'] as String? ?? 'text/plain',
+        metadata: event['metadata'] is Map<String, dynamic>
+            ? event['metadata'] as Map<String, dynamic>
+            : const {},
+        attachments: event['attachments'] is List
+            ? (event['attachments'] as List)
+                  .map((item) => Map<String, dynamic>.from(item as Map))
+                  .toList()
+            : const [],
       );
 
       await DbHelper.insertMessage(activeWallet.agentId, peerId, msg);
@@ -751,6 +760,9 @@ class ChatProvider with ChangeNotifier {
       senderPubKeyHex: agentId,
       timestamp: event['created_at'] * 1000,
       isMine: true,
+      contentType: contentType,
+      metadata: metadata,
+      attachments: attachments,
     );
     await DbHelper.insertMessage(agentId, peerId, msg);
     if (!_messages.containsKey(peerId)) _messages[peerId] = [];

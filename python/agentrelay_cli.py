@@ -30,7 +30,7 @@ CONTACTS_PATH = BASE_DIR / "contacts.json"
 DATA_PATH = BASE_DIR / "data.json"
 INBOX_PATH = BASE_DIR / "inbox.json"
 LOGS_DIR = BASE_DIR / "logs"
-RUN_DIR = BASE_DIR / "run"
+RUN_DIR = BASE_DIR / "run
 
 
 def load_json(path: Path, default: Any) -> Any:
