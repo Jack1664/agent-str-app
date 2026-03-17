@@ -272,7 +272,7 @@ class _LiquidTabButton extends StatelessWidget {
                       isSelected ? item.activeIcon : item.icon,
                       key: ValueKey<bool>(isSelected),
                       color: color,
-                      size: 24,
+                      size: 28,
                     ),
                   ),
                   const SizedBox(height: 4),
