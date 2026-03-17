@@ -60,6 +60,8 @@ class TopicInfo {
 
 /// 聊天与通信核心提供者，负责 WebSocket 连接、消息收发及好友管理
 class ChatProvider with ChangeNotifier {
+  static const String defaultRelayUrl = 'ws://112.126.60.140:8765/ws/agent';
+
   WebSocketChannel? _channel;
   bool _isConnected = false;
   bool _isAuthenticated = false;
@@ -91,7 +93,7 @@ class ChatProvider with ChangeNotifier {
   bool get isAuthPending => _lastChallenge != null && !_isAuthenticated;
   Map<String, dynamic>? get lastChallenge => _lastChallenge;
 
-  String? get lastUsedUrl => _lastUsedUrl;
+  String get lastUsedUrl => _lastUsedUrl ?? defaultRelayUrl;
   String get agentsUrl => _agentsUrl;
   String get topicsUrl => _topicsUrl;
   Wallet? get lastUsedWallet => _lastUsedWallet;
@@ -360,8 +362,11 @@ class ChatProvider with ChangeNotifier {
     final savedUrl = prefs.getString(
       '${_relayUrlKeyPrefix}${activeWallet.agentId}',
     );
-    if (savedUrl != null && savedUrl.isNotEmpty) {
-      await connect(savedUrl, activeWallet);
+    final relayUrl = (savedUrl != null && savedUrl.isNotEmpty)
+        ? savedUrl
+        : defaultRelayUrl;
+    if (relayUrl.isNotEmpty) {
+      await connect(relayUrl, activeWallet);
     }
   }
 

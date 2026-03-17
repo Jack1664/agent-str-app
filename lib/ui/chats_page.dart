@@ -38,7 +38,7 @@ class _ChatsPageState extends State<ChatsPage> {
   }
 
   void _showConnectionStatus(ChatProvider chatProvider) {
-    _urlController.text = chatProvider.lastUsedUrl ?? '';
+    _urlController.text = chatProvider.lastUsedUrl;
     _agentsUrlController.text = chatProvider.agentsUrl;
     _topicsUrlController.text = chatProvider.topicsUrl;
 
@@ -80,7 +80,7 @@ class _ChatsPageState extends State<ChatsPage> {
               TextField(
                 controller: _urlController,
                 decoration: InputDecoration(
-                  hintText: 'ws://...',
+                  hintText: ChatProvider.defaultRelayUrl,
                   filled: true,
                   fillColor: Colors.grey.shade50,
                   border: OutlineInputBorder(
