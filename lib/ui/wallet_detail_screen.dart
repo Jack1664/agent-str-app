@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:hex/hex.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../models/wallet.dart';
-import '../core/crypto_util.dart';
+import '../core/chat_provider.dart';
 import '../core/wallet_provider.dart';
 import 'widgets/top_notice.dart';
 
@@ -130,13 +129,25 @@ class _WalletDetailScreenState extends State<WalletDetailScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {
-                    Provider.of<WalletProvider>(
+                  onPressed: () async {
+                    final navigator = Navigator.of(context);
+                    final walletProvider = Provider.of<WalletProvider>(
                       context,
                       listen: false,
-                    ).deleteWallet(widget.wallet.id);
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Back to wallet list
+                    );
+                    final chatProvider = Provider.of<ChatProvider>(
+                      context,
+                      listen: false,
+                    );
+                    await walletProvider.deleteWallet(widget.wallet.id);
+                    final nextWallet = walletProvider.activeWallet;
+                    if (nextWallet == null) {
+                      chatProvider.handleNoWallets();
+                    } else {
+                      await chatProvider.switchWallet(nextWallet);
+                    }
+                    navigator.pop(); // Close dialog
+                    navigator.pop(); // Back to wallet list
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,

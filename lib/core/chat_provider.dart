@@ -471,6 +471,8 @@ class ChatProvider with ChangeNotifier {
     _isConnected = false;
     _isAuthenticated = false;
     _isConnecting = false;
+    _lastChallenge = null;
+    _channel = null;
     notifyListeners();
   }
 
@@ -480,6 +482,26 @@ class ChatProvider with ChangeNotifier {
     _channel?.sink.close();
     _handleDisconnect("Disconnected");
     _activePrivateKey = null;
+  }
+
+  Future<void> switchWallet(Wallet wallet) async {
+    final isSameWallet = _lastUsedWallet?.agentId == wallet.agentId;
+    if (isSameWallet && _isConnected && _isAuthenticated) {
+      return;
+    }
+
+    disconnect();
+    await autoConnect(wallet);
+  }
+
+  void handleNoWallets() {
+    disconnect();
+    _lastUsedWallet = null;
+    _friends = [];
+    _myTopics = [];
+    _messages = {};
+    _pendingRequests = [];
+    notifyListeners();
   }
 
   Future<void> addFriend(

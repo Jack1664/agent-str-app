@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/wallet_provider.dart';
 import '../core/chat_provider.dart';
-import '../models/wallet.dart';
 import 'wallet_list_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
 
-  void _showWalletSelector(BuildContext context, WalletProvider walletProvider) {
+  void _showWalletSelector(
+    BuildContext context,
+    WalletProvider walletProvider,
+  ) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -41,10 +43,13 @@ class SettingsScreen extends StatelessWidget {
                   itemCount: walletProvider.wallets.length,
                   itemBuilder: (context, index) {
                     final wallet = walletProvider.wallets[index];
-                    final bool isActive = walletProvider.activeWallet?.id == wallet.id;
+                    final bool isActive =
+                        walletProvider.activeWallet?.id == wallet.id;
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: isActive ? const Color(0xFF00D1C1) : Colors.grey.shade200,
+                        backgroundColor: isActive
+                            ? const Color(0xFF00D1C1)
+                            : Colors.grey.shade200,
                         child: Icon(
                           Icons.account_balance_wallet_rounded,
                           color: isActive ? Colors.white : Colors.grey.shade500,
@@ -54,21 +59,34 @@ class SettingsScreen extends StatelessWidget {
                       title: Text(
                         wallet.name,
                         style: TextStyle(
-                          fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                          color: isActive ? const Color(0xFF00D1C1) : Colors.black87,
+                          fontWeight: isActive
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isActive
+                              ? const Color(0xFF00D1C1)
+                              : Colors.black87,
                         ),
                       ),
                       subtitle: Text(
                         '${wallet.agentAddress.substring(0, 8)}...${wallet.agentAddress.substring(wallet.agentAddress.length - 8)}',
-                        style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'monospace',
+                        ),
                       ),
                       trailing: isActive
-                          ? const Icon(Icons.check_circle, color: Color(0xFF00D1C1))
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: Color(0xFF00D1C1),
+                            )
                           : null,
-                      onTap: () {
+                      onTap: () async {
                         walletProvider.setActiveWallet(wallet);
-                        // Also auto-connect the chat provider for the new wallet
-                        Provider.of<ChatProvider>(context, listen: false).autoConnect(wallet);
+                        await Provider.of<ChatProvider>(
+                          context,
+                          listen: false,
+                        ).switchWallet(wallet);
+                        if (!context.mounted) return;
                         Navigator.pop(context);
                       },
                     );
@@ -101,10 +119,7 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
-      appBar: AppBar(
-        title: const Text('Settings'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Settings'), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -123,9 +138,15 @@ class SettingsScreen extends StatelessWidget {
                     title: Text(activeWallet.name),
                     subtitle: Text(
                       '${activeWallet.agentAddress.substring(0, 8)}...${activeWallet.agentAddress.substring(activeWallet.agentAddress.length - 8)}',
-                      style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
                     ),
-                    trailing: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey),
+                    trailing: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
               ),
@@ -170,7 +191,12 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingsItem(BuildContext context, {required IconData icon, required String title, required VoidCallback onTap}) {
+  Widget _buildSettingsItem(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
