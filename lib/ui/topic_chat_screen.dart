@@ -24,6 +24,7 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
   final _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
+  String? _pendingImagePath;
 
   @override
   void dispose() {
@@ -32,7 +33,7 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
     super.dispose();
   }
 
-  Future<void> _sendMessage() async {
+  Future<void> _sendTextMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -55,6 +56,34 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
     _messageController.clear();
   }
 
+  Future<void> _sendMessage() async {
+    if (_pendingImagePath != null && _pendingImagePath!.isNotEmpty) {
+      final imagePath = _pendingImagePath!;
+      final wallet = Provider.of<WalletProvider>(
+        context,
+        listen: false,
+      ).activeWallet!;
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
+      final keyPair = CryptoUtil.deriveKeyPair(seed);
+
+      await chatProvider.sendImageMessage(
+        imagePath,
+        keyPair.privateKey,
+        wallet.agentId,
+        widget.topic.id,
+        chatType: "topic",
+      );
+      if (!mounted) return;
+      setState(() {
+        _pendingImagePath = null;
+      });
+      return;
+    }
+
+    await _sendTextMessage();
+  }
+
   Future<void> _sendVoiceMessage(String filePath, Duration duration) async {
     final wallet = Provider.of<WalletProvider>(
       context,
@@ -75,7 +104,7 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
     );
   }
 
-  Future<void> _pickAndSendImage() async {
+  Future<void> _pickImage() async {
     try {
       final image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
@@ -83,22 +112,9 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
       );
       if (image == null) return;
       if (!mounted) return;
-
-      final wallet = Provider.of<WalletProvider>(
-        context,
-        listen: false,
-      ).activeWallet!;
-      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-      final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
-      final keyPair = CryptoUtil.deriveKeyPair(seed);
-
-      await chatProvider.sendImageMessage(
-        image.path,
-        keyPair.privateKey,
-        wallet.agentId,
-        widget.topic.id,
-        chatType: "topic",
-      );
+      setState(() {
+        _pendingImagePath = image.path;
+      });
     } catch (e) {
       if (!mounted) return;
       TopNotice.show(
@@ -204,9 +220,15 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
       controller: _messageController,
       hintText: 'Message...',
       onSend: _sendMessage,
-      onAttach: _pickAndSendImage,
+      onAttach: _pickImage,
       onMic: () {},
       onSendVoice: _sendVoiceMessage,
+      pendingImagePath: _pendingImagePath,
+      onRemoveAttachment: () {
+        setState(() {
+          _pendingImagePath = null;
+        });
+      },
     );
   }
 }

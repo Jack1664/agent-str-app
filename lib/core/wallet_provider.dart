@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/wallet.dart';
+import 'db_helper.dart';
 
 class WalletProvider with ChangeNotifier {
   List<Wallet> _wallets = [];
@@ -34,10 +35,21 @@ class WalletProvider with ChangeNotifier {
   }
 
   Future<void> deleteWallet(String id) async {
+    final wallet = _wallets.cast<Wallet?>().firstWhere(
+      (item) => item?.id == id,
+      orElse: () => null,
+    );
+    final agentId = wallet?.agentId;
+
     _wallets.removeWhere((w) => w.id == id);
     if (_activeWallet?.id == id) {
       _activeWallet = _wallets.isNotEmpty ? _wallets[0] : null;
     }
+
+    if (agentId != null && agentId.isNotEmpty) {
+      await _deleteWalletData(agentId);
+    }
+
     await _saveWallets();
   }
 
@@ -63,5 +75,15 @@ class WalletProvider with ChangeNotifier {
     final String encoded = jsonEncode(_wallets.map((e) => e.toJson()).toList());
     await prefs.setString('wallets', encoded);
     notifyListeners();
+  }
+
+  Future<void> _deleteWalletData(String agentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('relay_url_$agentId');
+    await prefs.remove('agents_url_$agentId');
+    await prefs.remove('topics_url_$agentId');
+    await prefs.remove('friends_v2_$agentId');
+    await prefs.remove('my_topics_v2_$agentId');
+    await DbHelper.deleteMessagesForAgent(agentId);
   }
 }

@@ -112,4 +112,9 @@ class DbHelper {
       );
     });
   }
+
+  static Future<void> deleteMessagesForAgent(String myAgentId) async {
+    final db = await database;
+    await db.delete('messages', where: 'myAgentId = ?', whereArgs: [myAgentId]);
+  }
 }
