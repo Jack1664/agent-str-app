@@ -16,6 +16,7 @@ import '../models/friend.dart';
 import '../models/wallet.dart';
 import 'crypto_util.dart';
 import 'db_helper.dart';
+import 'notification_service.dart';
 import '../ui/widgets/top_notice.dart';
 
 /// 表示收到的好友申请
@@ -117,6 +118,14 @@ class ChatProvider with ChangeNotifier {
 
   /// 连接到指定的 Relay 服务器
   Future<void> connect(String url, Wallet activeWallet) async {
+    final normalizedUrl = url.trim().replaceFirst(RegExp(r'/*$'), '');
+    if (_isConnected &&
+        !_isConnecting &&
+        _lastUsedWallet?.agentId == activeWallet.agentId &&
+        _lastUsedUrl == normalizedUrl) {
+      return;
+    }
+
     if (_isConnecting &&
         _lastUsedUrl == url &&
         _lastUsedWallet?.agentId == activeWallet.agentId)
@@ -343,8 +352,45 @@ class ChatProvider with ChangeNotifier {
 
       if (!_messages.containsKey(peerId)) _messages[peerId] = [];
       _messages[peerId]!.add(msg);
+      if (sender != activeWallet.agentId && event['kind'] == 'message') {
+        final notificationTitle = _notificationTitleForMessage(
+          chatType,
+          peerId,
+        );
+        await NotificationService.showIncomingMessage(
+          title: notificationTitle,
+          body: _notificationBodyForMessage(msg),
+          payload: jsonEncode({
+            'chat_type': chatType,
+            'peer_id': peerId,
+            'title': notificationTitle,
+          }),
+        );
+      }
       notifyListeners();
     }
+  }
+
+  String _notificationTitleForMessage(String chatType, String peerId) {
+    if (chatType == 'topic') {
+      final topic = _myTopics.cast<TopicInfo?>().firstWhere(
+        (item) => item?.id == peerId,
+        orElse: () => null,
+      );
+      return topic?.alias.isNotEmpty == true ? topic!.alias : peerId;
+    }
+
+    final friend = _friends.cast<Friend?>().firstWhere(
+      (item) => item?.pubKeyHex == peerId,
+      orElse: () => null,
+    );
+    return friend?.alias.isNotEmpty == true ? friend!.alias : 'New message';
+  }
+
+  String _notificationBodyForMessage(ChatMessage message) {
+    if (message.isVoiceMessage) return '[Voice message]';
+    if (message.isImageMessage) return '[Image]';
+    return message.content;
   }
 
   void _sendAck(String agentId, Map<String, dynamic> sourceEvent) {
@@ -387,6 +433,12 @@ class ChatProvider with ChangeNotifier {
   }
 
   Future<void> autoConnect(Wallet activeWallet) async {
+    if (_isConnected &&
+        !_isConnecting &&
+        _lastUsedWallet?.agentId == activeWallet.agentId) {
+      return;
+    }
+
     _lastUsedWallet = activeWallet;
     // 重置内存状态，准备加载新钱包数据
     _friends = [];

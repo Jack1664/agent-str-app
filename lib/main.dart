@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 
 import 'core/wallet_provider.dart';
 import 'core/chat_provider.dart';
+import 'core/notification_service.dart';
 import 'ui/welcome_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.initialize();
   runApp(
     MultiProvider(
       providers: [
@@ -24,12 +27,15 @@ class AgentStrApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NotificationService.navigatorKey,
       title: 'Agent Str',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
         primaryColor: const Color(0xFF00D1C1), // Teal accent from Bitget
-        scaffoldBackgroundColor: const Color(0xFFF6F8FA), // Light grey/blue background
+        scaffoldBackgroundColor: const Color(
+          0xFFF6F8FA,
+        ), // Light grey/blue background
         useMaterial3: true,
         fontFamily: 'SF Pro Display', // Typical iOS/Modern look
         appBarTheme: const AppBarTheme(
@@ -70,7 +76,10 @@ class AgentStrApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
       home: const AnnotatedRegion<SystemUiOverlayStyle>(
@@ -86,8 +95,6 @@ class Welcome_Screen_Wrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Check if we already have wallets to decide where to start
-    final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     return const WelcomeScreen();
   }
 }

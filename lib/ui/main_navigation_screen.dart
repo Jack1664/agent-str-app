@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/notification_service.dart';
 import 'chats_page.dart';
 import 'explore_screen.dart';
 import 'settings_screen.dart';
@@ -20,6 +21,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     const ExploreScreen(),
     const SettingsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.processPendingNavigation();
+    });
+  }
 
   void _onItemTapped(int index) {
     if (_selectedIndex == index) return;
