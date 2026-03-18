@@ -68,7 +68,7 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ),
                       subtitle: Text(
-                        '${wallet.agentAddress.substring(0, 8)}...${wallet.agentAddress.substring(wallet.agentAddress.length - 8)}',
+                        '${wallet.agentId.substring(0, 8)}...${wallet.agentId.substring(wallet.agentId.length - 8)}',
                         style: const TextStyle(
                           fontSize: 11,
                           fontFamily: 'monospace',
@@ -137,7 +137,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     title: Text(activeWallet.name),
                     subtitle: Text(
-                      '${activeWallet.agentAddress.substring(0, 8)}...${activeWallet.agentAddress.substring(activeWallet.agentAddress.length - 8)}',
+                      '${activeWallet.agentId.substring(0, 8)}...${activeWallet.agentId.substring(activeWallet.agentId.length - 8)}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontFamily: 'monospace',
