@@ -27,7 +27,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     // Load wallets, then navigate
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Provider.of<WalletProvider>(context, listen: false).loadWallets();
-      await Future.delayed(const Duration(seconds: 3));
+      if (!NotificationService.hasPendingNavigation) {
+        await Future.delayed(const Duration(seconds: 3));
+      }
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
@@ -40,9 +42,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             transitionDuration: const Duration(milliseconds: 800),
           ),
         );
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          NotificationService.processPendingNavigation();
-        });
       }
     });
   }

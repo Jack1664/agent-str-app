@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/friend.dart';
 import '../ui/chat_screen.dart';
@@ -13,12 +14,22 @@ import 'wallet_provider.dart';
 class NotificationService {
   NotificationService._();
 
+  static const String _pendingPayloadKey = 'pending_notification_payload';
+
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  static bool _mainNavigationReady = false;
   static String? _pendingPayload;
+
+  static bool get hasPendingNavigation =>
+      _pendingPayload != null && _pendingPayload!.isNotEmpty;
+
+  static void setMainNavigationReady(bool ready) {
+    _mainNavigationReady = ready;
+  }
 
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -43,6 +54,7 @@ class NotificationService {
       onDidReceiveNotificationResponse: (response) async {
         await _handleNotificationTap(response.payload);
       },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
     await _plugin
@@ -77,6 +89,7 @@ class NotificationService {
     if (launchDetails?.didNotificationLaunchApp == true) {
       _pendingPayload = launchDetails?.notificationResponse?.payload;
     }
+    _pendingPayload ??= await _readPersistedPendingPayload();
 
     _initialized = true;
   }
@@ -112,17 +125,39 @@ class NotificationService {
 
   static Future<void> processPendingNavigation() async {
     if (_pendingPayload == null) return;
+    if (!_mainNavigationReady) return;
     final payload = _pendingPayload;
     final navigated = await _navigateFromPayload(payload);
     if (navigated) {
       _pendingPayload = null;
+      await _clearPersistedPendingPayload();
     }
   }
 
   static Future<void> _handleNotificationTap(String? payload) async {
     _pendingPayload = payload;
+    await _persistPendingPayload(payload);
     await Future.delayed(const Duration(milliseconds: 350));
     await processPendingNavigation();
+  }
+
+  static Future<void> _persistPendingPayload(String? payload) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (payload == null || payload.isEmpty) {
+      await prefs.remove(_pendingPayloadKey);
+      return;
+    }
+    await prefs.setString(_pendingPayloadKey, payload);
+  }
+
+  static Future<String?> _readPersistedPendingPayload() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_pendingPayloadKey);
+  }
+
+  static Future<void> _clearPersistedPendingPayload() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pendingPayloadKey);
   }
 
   static Future<bool> _navigateFromPayload(String? payload) async {
@@ -144,11 +179,12 @@ class NotificationService {
       if (peerId.isEmpty) return false;
 
       if (chatType == 'topic') {
-        final topic = chatProvider.myTopics.cast<TopicInfo?>().firstWhere(
-          (item) => item?.id == peerId,
-          orElse: () => null,
-        );
-        if (topic == null) return false;
+        final topic =
+            chatProvider.myTopics.cast<TopicInfo?>().firstWhere(
+              (item) => item?.id == peerId,
+              orElse: () => null,
+            ) ??
+            TopicInfo(id: peerId, title: title.isNotEmpty ? title : peerId);
         navigator.push(
           MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
         );
@@ -175,4 +211,16 @@ class NotificationService {
       return false;
     }
   }
+}
+
+@pragma('vm:entry-point')
+Future<void> notificationTapBackground(NotificationResponse response) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final payload = response.payload;
+  final prefs = await SharedPreferences.getInstance();
+  if (payload == null || payload.isEmpty) {
+    await prefs.remove(NotificationService._pendingPayloadKey);
+    return;
+  }
+  await prefs.setString(NotificationService._pendingPayloadKey, payload);
 }

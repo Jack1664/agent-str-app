@@ -118,6 +118,7 @@ class ChatProvider with ChangeNotifier {
   static const String _topicsUrlKeyPrefix = 'topics_url_';
   static const String _friendsKeyPrefix = 'friends_v2_';
   static const String _topicsKeyPrefix = 'my_topics_v2_';
+  static const String _unreadCountsKeyPrefix = 'unread_counts_v1_';
 
   int unreadCountFor(String peerId) => _unreadCounts[peerId] ?? 0;
 
@@ -133,8 +134,14 @@ class ChatProvider with ChangeNotifier {
   }
 
   void markChatRead(String peerId, {bool notify = true}) {
-    if (_unreadCounts.remove(peerId) != null && notify) {
-      notifyListeners();
+    if (_unreadCounts.remove(peerId) != null) {
+      final agentId = _lastUsedWallet?.agentId;
+      if (agentId != null) {
+        unawaited(_saveUnreadCounts(agentId));
+      }
+      if (notify) {
+        notifyListeners();
+      }
     }
   }
 
@@ -377,6 +384,7 @@ class ChatProvider with ChangeNotifier {
       if (sender != activeWallet.agentId && event['kind'] == 'message') {
         if (_activeChatId != peerId) {
           _unreadCounts[peerId] = unreadCountFor(peerId) + 1;
+          await _saveUnreadCounts(activeWallet.agentId);
         }
         final notificationTitle = _notificationTitleForMessage(
           chatType,
@@ -483,6 +491,7 @@ class ChatProvider with ChangeNotifier {
 
     await loadFriends(activeWallet.agentId);
     await _loadMyTopics(activeWallet.agentId);
+    await _loadUnreadCounts(activeWallet.agentId);
     notifyListeners();
 
     final savedUrl = prefs.getString(
@@ -552,6 +561,34 @@ class ChatProvider with ChangeNotifier {
     await prefs.setString('${_topicsKeyPrefix}$agentId', encoded);
   }
 
+  Future<void> _loadUnreadCounts(String agentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final unreadJson = prefs.getString('$_unreadCountsKeyPrefix$agentId');
+    if (unreadJson == null || unreadJson.isEmpty) {
+      _unreadCounts = {};
+      return;
+    }
+
+    final decoded = jsonDecode(unreadJson);
+    if (decoded is! Map) {
+      _unreadCounts = {};
+      return;
+    }
+
+    _unreadCounts = decoded.map<String, int>((key, value) {
+      final count = value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+      return MapEntry('$key', count);
+    });
+  }
+
+  Future<void> _saveUnreadCounts(String agentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_unreadCountsKeyPrefix$agentId',
+      jsonEncode(_unreadCounts),
+    );
+  }
+
   void _handleDisconnect(String message) {
     _isConnected = false;
     _isAuthenticated = false;
@@ -580,6 +617,7 @@ class ChatProvider with ChangeNotifier {
   }
 
   void handleNoWallets() {
+    final agentId = _lastUsedWallet?.agentId;
     disconnect();
     _lastUsedWallet = null;
     _friends = [];
@@ -587,6 +625,9 @@ class ChatProvider with ChangeNotifier {
     _messages = {};
     _unreadCounts = {};
     _pendingRequests = [];
+    if (agentId != null) {
+      unawaited(_saveUnreadCounts(agentId));
+    }
     _activeChatId = null;
     notifyListeners();
   }

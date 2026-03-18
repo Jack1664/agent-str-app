@@ -633,13 +633,10 @@ class _ChatsPageState extends State<ChatsPage> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        onTap: () {
-          chatProvider.markChatRead(friend.pubKeyHex);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
-          );
-        },
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
+        ),
         onLongPress: () =>
             _showFriendMenu(context, friend, chatProvider, walletId),
       ),
@@ -703,13 +700,10 @@ class _ChatsPageState extends State<ChatsPage> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        onTap: () {
-          chatProvider.markChatRead(topic.id);
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
-          );
-        },
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
+        ),
       ),
     );
   }

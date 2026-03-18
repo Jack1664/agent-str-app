@@ -84,6 +84,7 @@ class WalletProvider with ChangeNotifier {
     await prefs.remove('topics_url_$agentId');
     await prefs.remove('friends_v2_$agentId');
     await prefs.remove('my_topics_v2_$agentId');
+    await prefs.remove('unread_counts_v1_$agentId');
     await DbHelper.deleteMessagesForAgent(agentId);
   }
 }

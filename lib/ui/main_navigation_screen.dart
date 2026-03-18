@@ -25,9 +25,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
+    NotificationService.setMainNavigationReady(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService.processPendingNavigation();
     });
+  }
+
+  @override
+  void dispose() {
+    NotificationService.setMainNavigationReady(false);
+    super.dispose();
   }
 
   void _onItemTapped(int index) {
