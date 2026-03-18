@@ -28,7 +28,20 @@ class _ChatScreenState extends State<ChatScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Provider.of<ChatProvider>(
+        context,
+        listen: false,
+      ).setActiveChat(widget.friend.pubKeyHex);
+    });
+  }
+
+  @override
   void dispose() {
+    Provider.of<ChatProvider>(context, listen: false).setActiveChat(null);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();

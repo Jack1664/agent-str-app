@@ -74,7 +74,9 @@ class ChatProvider with ChangeNotifier {
   List<TopicInfo> _myTopics = []; // 我订阅的话题列表
   List<Friend> _friends = [];
   Map<String, List<ChatMessage>> _messages = {};
+  Map<String, int> _unreadCounts = {};
   List<FriendRequest> _pendingRequests = []; // 待处理的好友申请
+  String? _activeChatId;
 
   // 认证流程相关变量
   Map<String, dynamic>? _lastChallenge;
@@ -108,6 +110,7 @@ class ChatProvider with ChangeNotifier {
   List<TopicInfo> get myTopics => _myTopics;
   List<Friend> get friends => _friends;
   Map<String, List<ChatMessage>> get messages => _messages;
+  Map<String, int> get unreadCounts => _unreadCounts;
   List<FriendRequest> get pendingRequests => _pendingRequests;
 
   static const String _relayUrlKeyPrefix = 'relay_url_';
@@ -115,6 +118,25 @@ class ChatProvider with ChangeNotifier {
   static const String _topicsUrlKeyPrefix = 'topics_url_';
   static const String _friendsKeyPrefix = 'friends_v2_';
   static const String _topicsKeyPrefix = 'my_topics_v2_';
+
+  int unreadCountFor(String peerId) => _unreadCounts[peerId] ?? 0;
+
+  void setActiveChat(String? peerId) {
+    final wasChanged = _activeChatId != peerId;
+    _activeChatId = peerId;
+    if (peerId != null) {
+      markChatRead(peerId, notify: false);
+    }
+    if (wasChanged) {
+      notifyListeners();
+    }
+  }
+
+  void markChatRead(String peerId, {bool notify = true}) {
+    if (_unreadCounts.remove(peerId) != null && notify) {
+      notifyListeners();
+    }
+  }
 
   /// 连接到指定的 Relay 服务器
   Future<void> connect(String url, Wallet activeWallet) async {
@@ -353,6 +375,9 @@ class ChatProvider with ChangeNotifier {
       if (!_messages.containsKey(peerId)) _messages[peerId] = [];
       _messages[peerId]!.add(msg);
       if (sender != activeWallet.agentId && event['kind'] == 'message') {
+        if (_activeChatId != peerId) {
+          _unreadCounts[peerId] = unreadCountFor(peerId) + 1;
+        }
         final notificationTitle = _notificationTitleForMessage(
           chatType,
           peerId,
@@ -444,7 +469,9 @@ class ChatProvider with ChangeNotifier {
     _friends = [];
     _myTopics = [];
     _messages = {};
+    _unreadCounts = {};
     _pendingRequests = [];
+    _activeChatId = null;
 
     final prefs = await SharedPreferences.getInstance();
     _agentsUrl =
@@ -558,7 +585,9 @@ class ChatProvider with ChangeNotifier {
     _friends = [];
     _myTopics = [];
     _messages = {};
+    _unreadCounts = {};
     _pendingRequests = [];
+    _activeChatId = null;
     notifyListeners();
   }
 

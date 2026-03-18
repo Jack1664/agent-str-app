@@ -522,12 +522,57 @@ class _ChatsPageState extends State<ChatsPage> {
     return latest.isMine ? 'You: $content' : content;
   }
 
+  Widget _buildUnreadBadge(int count) {
+    if (count <= 0) return const SizedBox.shrink();
+
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      decoration: BoxDecoration(
+        color: Colors.redAccent,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvatarWithBadge({
+    required Widget avatar,
+    required int unreadCount,
+    Widget? overlay,
+  }) {
+    return SizedBox(
+      width: 46,
+      height: 46,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(left: 0, top: 4, child: avatar),
+          if (overlay != null) Positioned(right: 2, bottom: 0, child: overlay),
+          if (unreadCount > 0)
+            Positioned(top: 0, right: 0, child: _buildUnreadBadge(unreadCount)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFriendItem(
     Friend friend,
     ChatProvider chatProvider,
     String walletId, {
     String? latestMessage,
   }) {
+    final unreadCount = chatProvider.unreadCountFor(friend.pubKeyHex);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -541,25 +586,21 @@ class _ChatsPageState extends State<ChatsPage> {
         ],
       ),
       child: ListTile(
-        leading: Stack(
-          children: [
-            CircleAvatar(
-              backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
-              child: Text(
-                friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Color(0xFF00D1C1),
-                  fontWeight: FontWeight.bold,
-                ),
+        leading: _buildAvatarWithBadge(
+          unreadCount: unreadCount,
+          avatar: CircleAvatar(
+            backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
+            child: Text(
+              friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: Color(0xFF00D1C1),
+                fontWeight: FontWeight.bold,
               ),
             ),
-            if (friend.isPinned)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Icon(Icons.push_pin, size: 12, color: Colors.orange),
-              ),
-          ],
+          ),
+          overlay: friend.isPinned
+              ? const Icon(Icons.push_pin, size: 12, color: Colors.orange)
+              : null,
         ),
         title: Row(
           children: [
@@ -592,10 +633,13 @@ class _ChatsPageState extends State<ChatsPage> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
-        ),
+        onTap: () {
+          chatProvider.markChatRead(friend.pubKeyHex);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
+          );
+        },
         onLongPress: () =>
             _showFriendMenu(context, friend, chatProvider, walletId),
       ),
@@ -607,6 +651,7 @@ class _ChatsPageState extends State<ChatsPage> {
     ChatProvider chatProvider, {
     String? latestMessage,
   }) {
+    final unreadCount = chatProvider.unreadCountFor(topic.id);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -620,9 +665,12 @@ class _ChatsPageState extends State<ChatsPage> {
         ],
       ),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.purple.shade50,
-          child: const Icon(Icons.tag, color: Colors.purple, size: 20),
+        leading: _buildAvatarWithBadge(
+          unreadCount: unreadCount,
+          avatar: CircleAvatar(
+            backgroundColor: Colors.purple.shade50,
+            child: const Icon(Icons.tag, color: Colors.purple, size: 20),
+          ),
         ),
         title: Row(
           children: [
@@ -655,10 +703,13 @@ class _ChatsPageState extends State<ChatsPage> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 12, color: Colors.grey),
         ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
-        ),
+        onTap: () {
+          chatProvider.markChatRead(topic.id);
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
+          );
+        },
       ),
     );
   }
