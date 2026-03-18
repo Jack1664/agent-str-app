@@ -30,6 +30,8 @@
 	<string>This app needs camera access to scan QR codes</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs microphone access to record voice messages</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photo library access to send image messages</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

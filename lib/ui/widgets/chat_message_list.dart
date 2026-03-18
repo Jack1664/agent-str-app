@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/chat_message.dart';
+import 'image_message_bubble.dart';
 import 'voice_message_bubble.dart';
 
 class ChatMessageList extends StatelessWidget {
@@ -121,7 +122,7 @@ class _ChatMessageItem extends StatelessWidget {
                     ),
                   ),
                 Container(
-                  padding: message.isVoiceMessage
+                  padding: (message.isVoiceMessage || message.isImageMessage)
                       ? EdgeInsets.zero
                       : const EdgeInsets.only(
                           left: 12,
@@ -130,7 +131,7 @@ class _ChatMessageItem extends StatelessWidget {
                           bottom: 6,
                         ),
                   decoration: BoxDecoration(
-                    color: message.isVoiceMessage
+                    color: (message.isVoiceMessage || message.isImageMessage)
                         ? Colors.transparent
                         : (isMine ? const Color(0xFF00D1C1) : Colors.white),
                     borderRadius: BorderRadius.only(
@@ -139,7 +140,8 @@ class _ChatMessageItem extends StatelessWidget {
                       bottomLeft: Radius.circular(isMine ? 16 : 4),
                       bottomRight: Radius.circular(isMine ? 4 : 16),
                     ),
-                    boxShadow: message.isVoiceMessage
+                    boxShadow:
+                        (message.isVoiceMessage || message.isImageMessage)
                         ? null
                         : [
                             BoxShadow(
@@ -151,6 +153,8 @@ class _ChatMessageItem extends StatelessWidget {
                   ),
                   child: message.isVoiceMessage
                       ? VoiceMessageBubble(message: message, isMine: isMine)
+                      : message.isImageMessage
+                      ? ImageMessageBubble(message: message, isMine: isMine)
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisSize: MainAxisSize.min,
@@ -180,7 +184,7 @@ class _ChatMessageItem extends StatelessWidget {
                           ],
                         ),
                 ),
-                if (message.isVoiceMessage) ...[
+                if (message.isVoiceMessage || message.isImageMessage) ...[
                   const SizedBox(height: 4),
                   Text(
                     timeStr,

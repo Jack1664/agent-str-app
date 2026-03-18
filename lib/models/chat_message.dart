@@ -29,6 +29,11 @@ class ChatMessage {
       metadata['message_type'] == 'voice' ||
       attachments.any(_isAudioAttachment);
 
+  bool get isImageMessage =>
+      contentType.startsWith('image/') ||
+      metadata['message_type'] == 'image' ||
+      attachments.any(_isImageAttachment);
+
   int? get voiceDurationMs {
     final metadataDuration = metadata['duration_ms'];
     final audioAttachment = attachments
@@ -75,6 +80,38 @@ class ChatMessage {
     return metadataUri is String && metadataUri.isNotEmpty ? metadataUri : null;
   }
 
+  String? get localImagePath {
+    final imageAttachment = attachments
+        .cast<Map<String, dynamic>?>()
+        .firstWhere(
+          (attachment) => attachment != null && _isImageAttachment(attachment),
+          orElse: () => null,
+        );
+    final attachmentPath = imageAttachment?['local_path'];
+    if (attachmentPath is String && attachmentPath.isNotEmpty) {
+      return attachmentPath;
+    }
+    final metadataPath = metadata['local_path'];
+    return metadataPath is String && metadataPath.isNotEmpty
+        ? metadataPath
+        : null;
+  }
+
+  String? get imageUri {
+    final imageAttachment = attachments
+        .cast<Map<String, dynamic>?>()
+        .firstWhere(
+          (attachment) => attachment != null && _isImageAttachment(attachment),
+          orElse: () => null,
+        );
+    final attachmentUri = imageAttachment?['uri'];
+    if (attachmentUri is String && attachmentUri.isNotEmpty) {
+      return attachmentUri;
+    }
+    final metadataUri = metadata['uri'];
+    return metadataUri is String && metadataUri.isNotEmpty ? metadataUri : null;
+  }
+
   bool _isAudioAttachment(Map<String, dynamic> attachment) {
     final type = attachment['type'];
     if (type is String && type.toLowerCase() == 'audio') return true;
@@ -90,6 +127,27 @@ class ChatMessage {
           lower.endsWith('.wav') ||
           lower.endsWith('.m4a') ||
           lower.endsWith('.aac')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _isImageAttachment(Map<String, dynamic> attachment) {
+    final type = attachment['type'];
+    if (type is String && type.toLowerCase() == 'image') return true;
+    final mimeType = attachment['mime_type'];
+    if (mimeType is String && mimeType.toLowerCase().startsWith('image/')) {
+      return true;
+    }
+    final name = attachment['name'];
+    if (name is String) {
+      final lower = name.toLowerCase();
+      if (lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.png') ||
+          lower.endsWith('.gif') ||
+          lower.endsWith('.webp')) {
         return true;
       }
     }

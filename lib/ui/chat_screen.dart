@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:hex/hex.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'dart:typed_data';
 import '../core/chat_provider.dart';
 import '../core/crypto_util.dart';
@@ -9,6 +10,7 @@ import '../models/friend.dart';
 import 'friend_info_screen.dart';
 import 'widgets/chat_composer.dart';
 import 'widgets/chat_message_list.dart';
+import 'widgets/top_notice.dart';
 
 class ChatScreen extends StatefulWidget {
   final Friend friend;
@@ -22,6 +24,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void dispose() {
@@ -69,6 +72,38 @@ class _ChatScreenState extends State<ChatScreen> {
       wallet.agentId,
       widget.friend.pubKeyHex,
     );
+  }
+
+  Future<void> _pickAndSendImage() async {
+    try {
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 92,
+      );
+      if (image == null) return;
+      if (!mounted) return;
+
+      final wallet = Provider.of<WalletProvider>(
+        context,
+        listen: false,
+      ).activeWallet!;
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
+      final keyPair = CryptoUtil.deriveKeyPair(seed);
+
+      await chatProvider.sendImageMessage(
+        image.path,
+        keyPair.privateKey,
+        wallet.agentId,
+        widget.friend.pubKeyHex,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      TopNotice.show(
+        'Image access failed. Please allow photo permission.',
+        backgroundColor: Colors.redAccent,
+      );
+    }
   }
 
   @override
@@ -167,7 +202,7 @@ class _ChatScreenState extends State<ChatScreen> {
       controller: _messageController,
       hintText: 'Secure message...',
       onSend: _sendMessage,
-      onAttach: () {},
+      onAttach: _pickAndSendImage,
       onMic: () {},
       onSendVoice: _sendVoiceMessage,
     );

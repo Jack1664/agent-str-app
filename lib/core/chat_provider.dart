@@ -848,6 +848,48 @@ class ChatProvider with ChangeNotifier {
     );
   }
 
+  Future<void> sendImageMessage(
+    String filePath,
+    ed.PrivateKey privateKey,
+    String agentId,
+    String peerId, {
+    String chatType = "dm",
+  }) async {
+    final fileBytes = await File(filePath).readAsBytes();
+    final encodedImage = base64Encode(fileBytes);
+    final fileName = p.basename(filePath);
+    final mimeType = _inferImageMimeType(filePath);
+
+    await sendMessage(
+      '[Image]',
+      privateKey,
+      agentId,
+      peerId,
+      chatType: chatType,
+      contentType: mimeType,
+      metadata: {
+        'message_type': 'image',
+        'local_path': filePath,
+        'uri': filePath,
+        'name': fileName,
+        'mime_type': mimeType,
+        'size_bytes': fileBytes.length,
+      },
+      attachments: [
+        {
+          'type': 'image',
+          'uri': filePath,
+          'name': fileName,
+          'mime_type': mimeType,
+          'local_path': filePath,
+          'size_bytes': fileBytes.length,
+          'encoding': 'base64',
+          'data_b64': encodedImage,
+        },
+      ],
+    );
+  }
+
   Future<List<Map<String, dynamic>>> _prepareIncomingAttachments(
     List rawAttachments,
     String eventId,
@@ -857,9 +899,7 @@ class ChatProvider with ChangeNotifier {
       final rawItem = rawAttachments[i];
       if (rawItem is! Map) continue;
       final attachment = Map<String, dynamic>.from(rawItem);
-      if (_looksLikeAudioAttachment(attachment)) {
-        attachment['type'] = 'audio';
-      }
+      _normalizeAttachmentType(attachment);
       final localPath = await _materializeAttachment(
         attachment,
         eventId: eventId,
@@ -880,26 +920,38 @@ class ChatProvider with ChangeNotifier {
   ) {
     if (attachments.isEmpty) return metadata;
     final normalized = Map<String, dynamic>.from(metadata);
-    final firstAudio = attachments.cast<Map<String, dynamic>?>().firstWhere(
-      (attachment) =>
-          attachment != null && _looksLikeAudioAttachment(attachment),
-      orElse: () => null,
-    );
-    if (firstAudio == null) return normalized;
-    normalized['message_type'] = normalized['message_type'] ?? 'voice';
+    final primaryAttachment =
+        attachments.cast<Map<String, dynamic>?>().firstWhere(
+          (attachment) =>
+              attachment != null && _looksLikeAudioAttachment(attachment),
+          orElse: () => null,
+        ) ??
+        attachments.cast<Map<String, dynamic>?>().firstWhere(
+          (attachment) =>
+              attachment != null && _looksLikeImageAttachment(attachment),
+          orElse: () => null,
+        );
+    if (primaryAttachment == null) return normalized;
+    if (_looksLikeAudioAttachment(primaryAttachment)) {
+      normalized['message_type'] = normalized['message_type'] ?? 'voice';
+      normalized['duration_ms'] =
+          normalized['duration_ms'] ?? primaryAttachment['duration_ms'];
+    } else if (_looksLikeImageAttachment(primaryAttachment)) {
+      normalized['message_type'] = normalized['message_type'] ?? 'image';
+    }
     normalized['duration_ms'] =
-        normalized['duration_ms'] ?? firstAudio['duration_ms'];
+        normalized['duration_ms'] ?? primaryAttachment['duration_ms'];
     normalized['mime_type'] =
-        normalized['mime_type'] ?? firstAudio['mime_type'];
-    if (firstAudio['local_path'] is String &&
-        (firstAudio['local_path'] as String).isNotEmpty) {
-      normalized['local_path'] = firstAudio['local_path'];
+        normalized['mime_type'] ?? primaryAttachment['mime_type'];
+    if (primaryAttachment['local_path'] is String &&
+        (primaryAttachment['local_path'] as String).isNotEmpty) {
+      normalized['local_path'] = primaryAttachment['local_path'];
     }
-    if (firstAudio['uri'] is String &&
-        (firstAudio['uri'] as String).isNotEmpty) {
-      normalized['uri'] = firstAudio['uri'];
+    if (primaryAttachment['uri'] is String &&
+        (primaryAttachment['uri'] as String).isNotEmpty) {
+      normalized['uri'] = primaryAttachment['uri'];
     }
-    normalized['name'] = normalized['name'] ?? firstAudio['name'];
+    normalized['name'] = normalized['name'] ?? primaryAttachment['name'];
     return normalized;
   }
 
@@ -977,6 +1029,14 @@ class ChatProvider with ChangeNotifier {
 
   String _extensionForMimeType(String mimeType) {
     switch (mimeType.toLowerCase()) {
+      case 'image/jpeg':
+        return '.jpg';
+      case 'image/png':
+        return '.png';
+      case 'image/gif':
+        return '.gif';
+      case 'image/webp':
+        return '.webp';
       case 'audio/ogg':
         return '.ogg';
       case 'audio/mpeg':
@@ -989,6 +1049,14 @@ class ChatProvider with ChangeNotifier {
         return '.aac';
       default:
         return '.bin';
+    }
+  }
+
+  void _normalizeAttachmentType(Map<String, dynamic> attachment) {
+    if (_looksLikeAudioAttachment(attachment)) {
+      attachment['type'] = 'audio';
+    } else if (_looksLikeImageAttachment(attachment)) {
+      attachment['type'] = 'image';
     }
   }
 
@@ -1019,6 +1087,33 @@ class ChatProvider with ChangeNotifier {
     return false;
   }
 
+  bool _looksLikeImageAttachment(Map<String, dynamic> attachment) {
+    final type = attachment['type'];
+    if (type is String && type.toLowerCase() == 'image') return true;
+
+    final mimeType = attachment['mime_type'];
+    if (mimeType is String && mimeType.toLowerCase().startsWith('image/')) {
+      return true;
+    }
+
+    final name = attachment['name'];
+    if (name is String) {
+      final lower = name.toLowerCase();
+      if (lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.png') ||
+          lower.endsWith('.gif') ||
+          lower.endsWith('.webp')) {
+        return true;
+      }
+    }
+
+    final uri = attachment['uri'];
+    if (uri is String && uri.startsWith('data:image/')) return true;
+
+    return false;
+  }
+
   String _inferAudioMimeType(String filePath) {
     final ext = p.extension(filePath).toLowerCase();
     switch (ext) {
@@ -1034,6 +1129,23 @@ class ChatProvider with ChangeNotifier {
         return 'audio/aac';
       default:
         return 'audio/aac';
+    }
+  }
+
+  String _inferImageMimeType(String filePath) {
+    final ext = p.extension(filePath).toLowerCase();
+    switch (ext) {
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      case '.gif':
+        return 'image/gif';
+      case '.webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
     }
   }
 }
