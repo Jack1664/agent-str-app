@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:hex/hex.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -24,7 +25,6 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
   final _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
-  String? _pendingImagePath;
 
   @override
   void dispose() {
@@ -56,33 +56,7 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
     _messageController.clear();
   }
 
-  Future<void> _sendMessage() async {
-    if (_pendingImagePath != null && _pendingImagePath!.isNotEmpty) {
-      final imagePath = _pendingImagePath!;
-      final wallet = Provider.of<WalletProvider>(
-        context,
-        listen: false,
-      ).activeWallet!;
-      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-      final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
-      final keyPair = CryptoUtil.deriveKeyPair(seed);
-
-      await chatProvider.sendImageMessage(
-        imagePath,
-        keyPair.privateKey,
-        wallet.agentId,
-        widget.topic.id,
-        chatType: "topic",
-      );
-      if (!mounted) return;
-      setState(() {
-        _pendingImagePath = null;
-      });
-      return;
-    }
-
-    await _sendTextMessage();
-  }
+  Future<void> _sendMessage() async => _sendTextMessage();
 
   Future<void> _sendVoiceMessage(String filePath, Duration duration) async {
     final wallet = Provider.of<WalletProvider>(
@@ -112,9 +86,24 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
       );
       if (image == null) return;
       if (!mounted) return;
-      setState(() {
-        _pendingImagePath = image.path;
-      });
+      final confirmed = await _confirmImageSend(image.path);
+      if (confirmed != true || !mounted) return;
+
+      final wallet = Provider.of<WalletProvider>(
+        context,
+        listen: false,
+      ).activeWallet!;
+      final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+      final seed = Uint8List.fromList(HEX.decode(wallet.seedHex));
+      final keyPair = CryptoUtil.deriveKeyPair(seed);
+
+      await chatProvider.sendImageMessage(
+        image.path,
+        keyPair.privateKey,
+        wallet.agentId,
+        widget.topic.id,
+        chatType: "topic",
+      );
     } catch (e) {
       if (!mounted) return;
       TopNotice.show(
@@ -122,6 +111,48 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
         backgroundColor: Colors.redAccent,
       );
     }
+  }
+
+  Future<bool?> _confirmImageSend(String imagePath) {
+    final imageFile = File(imagePath);
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text('Send image?'),
+          content: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: imageFile.existsSync()
+                ? Image.file(
+                    imageFile,
+                    width: 240,
+                    height: 240,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    width: 240,
+                    height: 180,
+                    color: const Color(0xFFF4F7FA),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image_outlined, size: 40),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -223,12 +254,6 @@ class _TopicChatScreenState extends State<TopicChatScreen> {
       onAttach: _pickImage,
       onMic: () {},
       onSendVoice: _sendVoiceMessage,
-      pendingImagePath: _pendingImagePath,
-      onRemoveAttachment: () {
-        setState(() {
-          _pendingImagePath = null;
-        });
-      },
     );
   }
 }

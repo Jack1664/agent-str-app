@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -20,8 +19,6 @@ class ChatComposer extends StatefulWidget {
     this.onAttach,
     this.onMic,
     this.onSendVoice,
-    this.pendingImagePath,
-    this.onRemoveAttachment,
   });
 
   final TextEditingController controller;
@@ -30,8 +27,6 @@ class ChatComposer extends StatefulWidget {
   final VoidCallback? onAttach;
   final VoidCallback? onMic;
   final VoiceMessageCallback? onSendVoice;
-  final String? pendingImagePath;
-  final VoidCallback? onRemoveAttachment;
 
   @override
   State<ChatComposer> createState() => _ChatComposerState();
@@ -200,113 +195,23 @@ class _ChatComposerState extends State<ChatComposer>
             _finishRecording();
           }
         },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!_isRecording && _hasPendingImage) ...[
-              _buildImagePreview(),
-              const SizedBox(height: 10),
-            ],
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeInOut,
-              switchOutCurve: Curves.easeInOut,
-              transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SizeTransition(
-                    sizeFactor: animation,
-                    axisAlignment: -1,
-                    child: child,
-                  ),
-                );
-              },
-              child: _isRecording
-                  ? _buildRecordingComposer()
-                  : _buildIdleComposer(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  bool get _hasPendingImage =>
-      widget.pendingImagePath != null && widget.pendingImagePath!.isNotEmpty;
-
-  Widget _buildImagePreview() {
-    final imagePath = widget.pendingImagePath!;
-    final imageFile = File(imagePath);
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: imageFile.existsSync()
-                  ? Image.file(
-                      imageFile,
-                      width: 64,
-                      height: 64,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 64,
-                      height: 64,
-                      color: const Color(0xFFF4F7FA),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.broken_image_outlined,
-                        color: Color(0xFF94A3B8),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 10),
-            const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Image selected',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Tap send to deliver',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                ),
-              ],
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: widget.onRemoveAttachment,
-              icon: const Icon(Icons.close_rounded, size: 18),
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFFF1F5F9),
-                foregroundColor: const Color(0xFF475569),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeInOut,
+          switchOutCurve: Curves.easeInOut,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SizeTransition(
+                sizeFactor: animation,
+                axisAlignment: -1,
+                child: child,
               ),
-            ),
-          ],
+            );
+          },
+          child: _isRecording
+              ? _buildRecordingComposer()
+              : _buildIdleComposer(),
         ),
       ),
     );
@@ -485,7 +390,7 @@ class _ChatComposerState extends State<ChatComposer>
       valueListenable: widget.controller,
       builder: (context, value, child) {
         final hasText = value.text.trim().isNotEmpty;
-        if ((hasText || _hasPendingImage) && !_isRecording) {
+        if (hasText && !_isRecording) {
           return _AccessoryButton(
             key: const ValueKey<String>('send_button'),
             icon: Icons.send_rounded,
