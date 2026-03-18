@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
@@ -316,6 +317,17 @@ class ChatProvider with ChangeNotifier {
           _messages[peerId]!.any((m) => m.signature == sig))
         return;
 
+      final attachments = await _prepareIncomingAttachments(
+        event['attachments'] is List ? event['attachments'] as List : const [],
+        event['id'] as String? ?? '${event['created_at']}_${sender.hashCode}',
+      );
+      final metadata = _prepareIncomingMetadata(
+        event['metadata'] is Map<String, dynamic>
+            ? event['metadata'] as Map<String, dynamic>
+            : const {},
+        attachments,
+      );
+
       final msg = ChatMessage(
         content: event['content'],
         signature: sig ?? '',
@@ -323,14 +335,8 @@ class ChatProvider with ChangeNotifier {
         timestamp: event['created_at'] * 1000,
         isMine: sender == activeWallet.agentId,
         contentType: event['content_type'] as String? ?? 'text/plain',
-        metadata: event['metadata'] is Map<String, dynamic>
-            ? event['metadata'] as Map<String, dynamic>
-            : const {},
-        attachments: event['attachments'] is List
-            ? (event['attachments'] as List)
-                  .map((item) => Map<String, dynamic>.from(item as Map))
-                  .toList()
-            : const [],
+        metadata: metadata,
+        attachments: attachments,
       );
 
       await DbHelper.insertMessage(activeWallet.agentId, peerId, msg);
@@ -801,6 +807,8 @@ class ChatProvider with ChangeNotifier {
     String peerId, {
     String chatType = "dm",
   }) async {
+    final fileBytes = await File(filePath).readAsBytes();
+    final encodedAudio = base64Encode(fileBytes);
     final fileName = p.basename(filePath);
     final mimeType = _inferAudioMimeType(filePath);
     final totalSeconds = duration.inSeconds;
@@ -822,6 +830,7 @@ class ChatProvider with ChangeNotifier {
         'uri': filePath,
         'name': fileName,
         'mime_type': mimeType,
+        'size_bytes': fileBytes.length,
       },
       attachments: [
         {
@@ -831,9 +840,122 @@ class ChatProvider with ChangeNotifier {
           'mime_type': mimeType,
           'local_path': filePath,
           'duration_ms': duration.inMilliseconds,
+          'size_bytes': fileBytes.length,
+          'encoding': 'base64',
+          'data_b64': encodedAudio,
         },
       ],
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _prepareIncomingAttachments(
+    List rawAttachments,
+    String eventId,
+  ) async {
+    final normalized = <Map<String, dynamic>>[];
+    for (var i = 0; i < rawAttachments.length; i++) {
+      final rawItem = rawAttachments[i];
+      if (rawItem is! Map) continue;
+      final attachment = Map<String, dynamic>.from(rawItem);
+      final localPath = await _materializeAttachment(
+        attachment,
+        eventId: eventId,
+        index: i,
+      );
+      if (localPath != null && localPath.isNotEmpty) {
+        attachment['local_path'] = localPath;
+        attachment['uri'] = attachment['uri'] ?? localPath;
+      }
+      normalized.add(attachment);
+    }
+    return normalized;
+  }
+
+  Map<String, dynamic> _prepareIncomingMetadata(
+    Map<String, dynamic> metadata,
+    List<Map<String, dynamic>> attachments,
+  ) {
+    if (attachments.isEmpty) return metadata;
+    final normalized = Map<String, dynamic>.from(metadata);
+    final firstAudio = attachments.cast<Map<String, dynamic>?>().firstWhere(
+      (attachment) => attachment?['type'] == 'audio',
+      orElse: () => null,
+    );
+    if (firstAudio == null) return normalized;
+    normalized['message_type'] = normalized['message_type'] ?? 'voice';
+    normalized['duration_ms'] =
+        normalized['duration_ms'] ?? firstAudio['duration_ms'];
+    normalized['mime_type'] =
+        normalized['mime_type'] ?? firstAudio['mime_type'];
+    normalized['local_path'] =
+        normalized['local_path'] ?? firstAudio['local_path'];
+    normalized['uri'] = normalized['uri'] ?? firstAudio['uri'];
+    normalized['name'] = normalized['name'] ?? firstAudio['name'];
+    return normalized;
+  }
+
+  Future<String?> _materializeAttachment(
+    Map<String, dynamic> attachment, {
+    required String eventId,
+    required int index,
+  }) async {
+    final existingLocalPath = attachment['local_path'];
+    if (existingLocalPath is String && existingLocalPath.isNotEmpty) {
+      final file = File(existingLocalPath);
+      if (file.existsSync()) return existingLocalPath;
+    }
+
+    final encodedData = attachment['data_b64'];
+    if (encodedData is! String || encodedData.isEmpty) return null;
+
+    try {
+      final bytes = base64Decode(encodedData);
+      final directory = await getTemporaryDirectory();
+      final fileName = _attachmentFileName(
+        attachment,
+        eventId: eventId,
+        index: index,
+      );
+      final filePath = p.join(directory.path, fileName);
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        await file.writeAsBytes(bytes, flush: true);
+      }
+      return file.path;
+    } catch (e) {
+      debugPrint('附件落盘失败: $e');
+      return null;
+    }
+  }
+
+  String _attachmentFileName(
+    Map<String, dynamic> attachment, {
+    required String eventId,
+    required int index,
+  }) {
+    final attachmentName = attachment['name'];
+    if (attachmentName is String && attachmentName.isNotEmpty) {
+      return '${eventId}_$index${p.extension(attachmentName)}';
+    }
+    final mimeType = attachment['mime_type'] as String? ?? '';
+    return '${eventId}_$index${_extensionForMimeType(mimeType)}';
+  }
+
+  String _extensionForMimeType(String mimeType) {
+    switch (mimeType.toLowerCase()) {
+      case 'audio/ogg':
+        return '.ogg';
+      case 'audio/mpeg':
+        return '.mp3';
+      case 'audio/wav':
+        return '.wav';
+      case 'audio/mp4':
+        return '.m4a';
+      case 'audio/aac':
+        return '.aac';
+      default:
+        return '.bin';
+    }
   }
 
   String _inferAudioMimeType(String filePath) {
