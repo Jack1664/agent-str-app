@@ -22,13 +22,19 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
   static bool _mainNavigationReady = false;
+  static bool _isAppInForeground = true;
   static String? _pendingPayload;
 
   static bool get hasPendingNavigation =>
       _pendingPayload != null && _pendingPayload!.isNotEmpty;
+  static bool get isAppInForeground => _isAppInForeground;
 
   static void setMainNavigationReady(bool ready) {
     _mainNavigationReady = ready;
+  }
+
+  static void setAppInForeground(bool isForeground) {
+    _isAppInForeground = isForeground;
   }
 
   static Future<void> initialize() async {
@@ -97,20 +103,22 @@ class NotificationService {
   static Future<void> showIncomingMessage({
     required String title,
     required String body,
+    int? badgeCount,
     String? payload,
   }) async {
     await initialize();
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
         'messages',
         'Messages',
         channelDescription: 'Notifications for incoming chat messages',
         importance: Importance.high,
         priority: Priority.high,
+        number: badgeCount,
       ),
-      iOS: DarwinNotificationDetails(),
-      macOS: DarwinNotificationDetails(),
+      iOS: DarwinNotificationDetails(badgeNumber: badgeCount),
+      macOS: DarwinNotificationDetails(badgeNumber: badgeCount),
       linux: LinuxNotificationDetails(),
     );
 
@@ -177,6 +185,8 @@ class NotificationService {
       final peerId = data['peer_id'] as String? ?? '';
       final title = data['title'] as String? ?? '';
       if (peerId.isEmpty) return false;
+
+      navigator.popUntil((route) => route.isFirst);
 
       if (chatType == 'topic') {
         final topic =

@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/chat_message.dart';
 import '../models/friend.dart';
 import '../models/wallet.dart';
+import 'app_badge_service.dart';
 import 'crypto_util.dart';
 import 'db_helper.dart';
 import 'notification_service.dart';
@@ -112,6 +113,8 @@ class ChatProvider with ChangeNotifier {
   Map<String, List<ChatMessage>> get messages => _messages;
   Map<String, int> get unreadCounts => _unreadCounts;
   List<FriendRequest> get pendingRequests => _pendingRequests;
+  int get totalUnreadCount =>
+      _unreadCounts.values.fold(0, (sum, count) => sum + count);
 
   static const String _relayUrlKeyPrefix = 'relay_url_';
   static const String _agentsUrlKeyPrefix = 'agents_url_';
@@ -121,6 +124,15 @@ class ChatProvider with ChangeNotifier {
   static const String _unreadCountsKeyPrefix = 'unread_counts_v1_';
 
   int unreadCountFor(String peerId) => _unreadCounts[peerId] ?? 0;
+
+  Future<void> _syncAppBadge() async {
+    final total = totalUnreadCount;
+    if (total <= 0) {
+      await AppBadgeService.clear();
+      return;
+    }
+    await AppBadgeService.updateCount(total);
+  }
 
   void setActiveChat(String? peerId) {
     final wasChanged = _activeChatId != peerId;
@@ -139,6 +151,7 @@ class ChatProvider with ChangeNotifier {
       if (agentId != null) {
         unawaited(_saveUnreadCounts(agentId));
       }
+      unawaited(_syncAppBadge());
       if (notify) {
         notifyListeners();
       }
@@ -382,9 +395,12 @@ class ChatProvider with ChangeNotifier {
       if (!_messages.containsKey(peerId)) _messages[peerId] = [];
       _messages[peerId]!.add(msg);
       if (sender != activeWallet.agentId && event['kind'] == 'message') {
-        if (_activeChatId != peerId) {
+        final shouldMarkUnread =
+            _activeChatId != peerId || !NotificationService.isAppInForeground;
+        if (shouldMarkUnread) {
           _unreadCounts[peerId] = unreadCountFor(peerId) + 1;
           await _saveUnreadCounts(activeWallet.agentId);
+          await _syncAppBadge();
         }
         final notificationTitle = _notificationTitleForMessage(
           chatType,
@@ -393,6 +409,7 @@ class ChatProvider with ChangeNotifier {
         await NotificationService.showIncomingMessage(
           title: notificationTitle,
           body: _notificationBodyForMessage(msg),
+          badgeCount: totalUnreadCount,
           payload: jsonEncode({
             'chat_type': chatType,
             'peer_id': peerId,
@@ -492,6 +509,7 @@ class ChatProvider with ChangeNotifier {
     await loadFriends(activeWallet.agentId);
     await _loadMyTopics(activeWallet.agentId);
     await _loadUnreadCounts(activeWallet.agentId);
+    await _syncAppBadge();
     notifyListeners();
 
     final savedUrl = prefs.getString(
@@ -628,6 +646,7 @@ class ChatProvider with ChangeNotifier {
     if (agentId != null) {
       unawaited(_saveUnreadCounts(agentId));
     }
+    unawaited(_syncAppBadge());
     _activeChatId = null;
     notifyListeners();
   }

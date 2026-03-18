@@ -33,6 +33,7 @@ class _AgentStrAppState extends State<AgentStrApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    NotificationService.setAppInForeground(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       NotificationService.processPendingNavigation();
     });
@@ -46,6 +47,7 @@ class _AgentStrAppState extends State<AgentStrApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    NotificationService.setAppInForeground(state == AppLifecycleState.resumed);
     if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         NotificationService.processPendingNavigation();

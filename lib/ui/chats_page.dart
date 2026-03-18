@@ -25,6 +25,8 @@ class _ChatsPageState extends State<ChatsPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Provider.of<ChatProvider>(context, listen: false).setActiveChat(null);
       _tryAutoConnect();
     });
   }
@@ -552,15 +554,15 @@ class _ChatsPageState extends State<ChatsPage> {
     Widget? overlay,
   }) {
     return SizedBox(
-      width: 46,
-      height: 46,
+      width: 52,
+      height: 52,
       child: Stack(
-        clipBehavior: Clip.none,
+        clipBehavior: Clip.hardEdge,
         children: [
-          Positioned(left: 0, top: 4, child: avatar),
-          if (overlay != null) Positioned(right: 2, bottom: 0, child: overlay),
+          Align(child: avatar),
+          if (overlay != null) Positioned(right: 6, bottom: 6, child: overlay),
           if (unreadCount > 0)
-            Positioned(top: 0, right: 0, child: _buildUnreadBadge(unreadCount)),
+            Positioned(top: 2, right: 2, child: _buildUnreadBadge(unreadCount)),
         ],
       ),
     );
@@ -586,9 +588,11 @@ class _ChatsPageState extends State<ChatsPage> {
         ],
       ),
       child: ListTile(
+        minLeadingWidth: 52,
         leading: _buildAvatarWithBadge(
           unreadCount: unreadCount,
           avatar: CircleAvatar(
+            radius: 18,
             backgroundColor: const Color(0xFF00D1C1).withOpacity(0.1),
             child: Text(
               friend.alias.isNotEmpty ? friend.alias[0].toUpperCase() : '?',
@@ -662,9 +666,11 @@ class _ChatsPageState extends State<ChatsPage> {
         ],
       ),
       child: ListTile(
+        minLeadingWidth: 52,
         leading: _buildAvatarWithBadge(
           unreadCount: unreadCount,
           avatar: CircleAvatar(
+            radius: 18,
             backgroundColor: Colors.purple.shade50,
             child: const Icon(Icons.tag, color: Colors.purple, size: 20),
           ),
