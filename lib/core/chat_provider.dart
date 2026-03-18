@@ -857,6 +857,9 @@ class ChatProvider with ChangeNotifier {
       final rawItem = rawAttachments[i];
       if (rawItem is! Map) continue;
       final attachment = Map<String, dynamic>.from(rawItem);
+      if (_looksLikeAudioAttachment(attachment)) {
+        attachment['type'] = 'audio';
+      }
       final localPath = await _materializeAttachment(
         attachment,
         eventId: eventId,
@@ -878,7 +881,8 @@ class ChatProvider with ChangeNotifier {
     if (attachments.isEmpty) return metadata;
     final normalized = Map<String, dynamic>.from(metadata);
     final firstAudio = attachments.cast<Map<String, dynamic>?>().firstWhere(
-      (attachment) => attachment?['type'] == 'audio',
+      (attachment) =>
+          attachment != null && _looksLikeAudioAttachment(attachment),
       orElse: () => null,
     );
     if (firstAudio == null) return normalized;
@@ -887,9 +891,14 @@ class ChatProvider with ChangeNotifier {
         normalized['duration_ms'] ?? firstAudio['duration_ms'];
     normalized['mime_type'] =
         normalized['mime_type'] ?? firstAudio['mime_type'];
-    normalized['local_path'] =
-        normalized['local_path'] ?? firstAudio['local_path'];
-    normalized['uri'] = normalized['uri'] ?? firstAudio['uri'];
+    if (firstAudio['local_path'] is String &&
+        (firstAudio['local_path'] as String).isNotEmpty) {
+      normalized['local_path'] = firstAudio['local_path'];
+    }
+    if (firstAudio['uri'] is String &&
+        (firstAudio['uri'] as String).isNotEmpty) {
+      normalized['uri'] = firstAudio['uri'];
+    }
     normalized['name'] = normalized['name'] ?? firstAudio['name'];
     return normalized;
   }
@@ -905,8 +914,8 @@ class ChatProvider with ChangeNotifier {
       if (file.existsSync()) return existingLocalPath;
     }
 
-    final encodedData = attachment['data_b64'];
-    if (encodedData is! String || encodedData.isEmpty) return null;
+    final encodedData = _extractAttachmentPayloadBase64(attachment);
+    if (encodedData == null || encodedData.isEmpty) return null;
 
     try {
       final bytes = base64Decode(encodedData);
@@ -926,6 +935,31 @@ class ChatProvider with ChangeNotifier {
       debugPrint('附件落盘失败: $e');
       return null;
     }
+  }
+
+  String? _extractAttachmentPayloadBase64(Map<String, dynamic> attachment) {
+    final directKeys = [
+      'data_b64',
+      'dataBase64',
+      'base64',
+      'bytes_b64',
+      'payload_b64',
+      'content_b64',
+    ];
+    for (final key in directKeys) {
+      final value = attachment[key];
+      if (value is String && value.isNotEmpty) return value;
+    }
+
+    final uri = attachment['uri'];
+    if (uri is String && uri.startsWith('data:')) {
+      final commaIndex = uri.indexOf(',');
+      if (commaIndex > 0 && uri.substring(0, commaIndex).contains(';base64')) {
+        return uri.substring(commaIndex + 1);
+      }
+    }
+
+    return null;
   }
 
   String _attachmentFileName(
@@ -956,6 +990,33 @@ class ChatProvider with ChangeNotifier {
       default:
         return '.bin';
     }
+  }
+
+  bool _looksLikeAudioAttachment(Map<String, dynamic> attachment) {
+    final type = attachment['type'];
+    if (type is String && type.toLowerCase() == 'audio') return true;
+
+    final mimeType = attachment['mime_type'];
+    if (mimeType is String && mimeType.toLowerCase().startsWith('audio/')) {
+      return true;
+    }
+
+    final name = attachment['name'];
+    if (name is String) {
+      final lower = name.toLowerCase();
+      if (lower.endsWith('.ogg') ||
+          lower.endsWith('.mp3') ||
+          lower.endsWith('.wav') ||
+          lower.endsWith('.m4a') ||
+          lower.endsWith('.aac')) {
+        return true;
+      }
+    }
+
+    final uri = attachment['uri'];
+    if (uri is String && uri.startsWith('data:audio/')) return true;
+
+    return false;
   }
 
   String _inferAudioMimeType(String filePath) {

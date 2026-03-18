@@ -27,37 +27,73 @@ class ChatMessage {
   bool get isVoiceMessage =>
       contentType.startsWith('audio/') ||
       metadata['message_type'] == 'voice' ||
-      attachments.any((attachment) => attachment['type'] == 'audio');
+      attachments.any(_isAudioAttachment);
 
   int? get voiceDurationMs {
     final metadataDuration = metadata['duration_ms'];
+    final audioAttachment = attachments
+        .cast<Map<String, dynamic>?>()
+        .firstWhere(
+          (attachment) => attachment != null && _isAudioAttachment(attachment),
+          orElse: () => null,
+        );
+    final attachmentDuration = audioAttachment?['duration_ms'];
+    if (attachmentDuration is int) return attachmentDuration;
     if (metadataDuration is int) return metadataDuration;
-    final attachmentDuration = attachments.isNotEmpty
-        ? attachments.first['duration_ms']
-        : null;
     return attachmentDuration is int ? attachmentDuration : null;
   }
 
   String? get localAudioPath {
+    final audioAttachment = attachments
+        .cast<Map<String, dynamic>?>()
+        .firstWhere(
+          (attachment) => attachment != null && _isAudioAttachment(attachment),
+          orElse: () => null,
+        );
+    final attachmentPath = audioAttachment?['local_path'];
+    if (attachmentPath is String && attachmentPath.isNotEmpty) {
+      return attachmentPath;
+    }
     final metadataPath = metadata['local_path'];
-    if (metadataPath is String && metadataPath.isNotEmpty) return metadataPath;
-    final attachmentPath = attachments.isNotEmpty
-        ? attachments.first['local_path']
-        : null;
-    return attachmentPath is String && attachmentPath.isNotEmpty
-        ? attachmentPath
+    return metadataPath is String && metadataPath.isNotEmpty
+        ? metadataPath
         : null;
   }
 
   String? get audioUri {
+    final audioAttachment = attachments
+        .cast<Map<String, dynamic>?>()
+        .firstWhere(
+          (attachment) => attachment != null && _isAudioAttachment(attachment),
+          orElse: () => null,
+        );
+    final attachmentUri = audioAttachment?['uri'];
+    if (attachmentUri is String && attachmentUri.isNotEmpty) {
+      return attachmentUri;
+    }
     final metadataUri = metadata['uri'];
-    if (metadataUri is String && metadataUri.isNotEmpty) return metadataUri;
-    final attachmentUri = attachments.isNotEmpty
-        ? attachments.first['uri']
-        : null;
-    return attachmentUri is String && attachmentUri.isNotEmpty
-        ? attachmentUri
-        : null;
+    return metadataUri is String && metadataUri.isNotEmpty ? metadataUri : null;
+  }
+
+  bool _isAudioAttachment(Map<String, dynamic> attachment) {
+    final type = attachment['type'];
+    if (type is String && type.toLowerCase() == 'audio') return true;
+    final mimeType = attachment['mime_type'];
+    if (mimeType is String && mimeType.toLowerCase().startsWith('audio/')) {
+      return true;
+    }
+    final name = attachment['name'];
+    if (name is String) {
+      final lower = name.toLowerCase();
+      if (lower.endsWith('.ogg') ||
+          lower.endsWith('.mp3') ||
+          lower.endsWith('.wav') ||
+          lower.endsWith('.m4a') ||
+          lower.endsWith('.aac')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   Map<String, dynamic> toJson() {
