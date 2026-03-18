@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../models/friend.dart';
 import '../ui/chat_screen.dart';
 import '../ui/topic_chat_screen.dart';
-import '../ui/main_navigation_screen.dart';
 import 'chat_provider.dart';
 import 'wallet_provider.dart';
 
@@ -114,21 +113,23 @@ class NotificationService {
   static Future<void> processPendingNavigation() async {
     if (_pendingPayload == null) return;
     final payload = _pendingPayload;
-    _pendingPayload = null;
-    await _navigateFromPayload(payload);
+    final navigated = await _navigateFromPayload(payload);
+    if (navigated) {
+      _pendingPayload = null;
+    }
   }
 
   static Future<void> _handleNotificationTap(String? payload) async {
-    final navigated = await _navigateFromPayload(payload);
-    if (!navigated) {
-      _pendingPayload = payload;
-    }
+    _pendingPayload = payload;
+    await Future.delayed(const Duration(milliseconds: 350));
+    await processPendingNavigation();
   }
 
   static Future<bool> _navigateFromPayload(String? payload) async {
     if (payload == null || payload.isEmpty) return false;
     final context = navigatorKey.currentContext;
-    if (context == null) return false;
+    final navigator = navigatorKey.currentState;
+    if (context == null || navigator == null) return false;
 
     final walletProvider = Provider.of<WalletProvider>(context, listen: false);
     if (walletProvider.activeWallet == null) return false;
@@ -142,19 +143,12 @@ class NotificationService {
       final title = data['title'] as String? ?? '';
       if (peerId.isEmpty) return false;
 
-      final navigator = navigatorKey.currentState;
-      if (navigator == null) return false;
-
       if (chatType == 'topic') {
         final topic = chatProvider.myTopics.cast<TopicInfo?>().firstWhere(
           (item) => item?.id == peerId,
           orElse: () => null,
         );
         if (topic == null) return false;
-        navigator.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-          (route) => false,
-        );
         navigator.push(
           MaterialPageRoute(builder: (_) => TopicChatScreen(topic: topic)),
         );
@@ -173,10 +167,6 @@ class NotificationService {
                 : (peerId.length > 8 ? peerId.substring(0, 8) : peerId),
           );
 
-      navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-        (route) => false,
-      );
       navigator.push(
         MaterialPageRoute(builder: (_) => ChatScreen(friend: friend)),
       );

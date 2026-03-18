@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'main_navigation_screen.dart';
+import '../core/notification_service.dart';
 import '../core/wallet_provider.dart';
 import 'dart:math' as math;
 
@@ -11,7 +12,8 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProviderStateMixin {
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
@@ -29,13 +31,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const MainNavigationScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const MainNavigationScreen(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
             transitionDuration: const Duration(milliseconds: 800),
           ),
         );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          NotificationService.processPendingNavigation();
+        });
       }
     });
   }
@@ -140,7 +147,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProvider
                   height: 2,
                   child: LinearProgressIndicator(
                     backgroundColor: Colors.white10,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D1C1)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFF00D1C1),
+                    ),
                   ),
                 ),
               ],
@@ -174,21 +183,23 @@ class BackgroundPainter extends CustomPainter {
       // Animate movement
       double offset = math.sin(animationValue * math.pi * 2 + i) * 20;
 
-      canvas.drawLine(
-        Offset(x1 + offset, y1),
-        Offset(x2 + offset, y2),
-        paint,
-      );
+      canvas.drawLine(Offset(x1 + offset, y1), Offset(x2 + offset, y2), paint);
 
       // Draw nodes
-      canvas.drawCircle(Offset(x1 + offset, y1), 2, paint..style = PaintingStyle.fill);
+      canvas.drawCircle(
+        Offset(x1 + offset, y1),
+        2,
+        paint..style = PaintingStyle.fill,
+      );
     }
 
     // Draw some large abstract circles
     canvas.drawCircle(
       Offset(size.width * 0.8, size.height * 0.2),
       100 + math.sin(animationValue * math.pi * 2) * 20,
-      paint..style = PaintingStyle.stroke..color = const Color(0xFF00D1C1).withOpacity(0.05),
+      paint
+        ..style = PaintingStyle.stroke
+        ..color = const Color(0xFF00D1C1).withOpacity(0.05),
     );
   }
 

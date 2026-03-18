@@ -21,8 +21,37 @@ void main() async {
   );
 }
 
-class AgentStrApp extends StatelessWidget {
+class AgentStrApp extends StatefulWidget {
   const AgentStrApp({Key? key}) : super(key: key);
+
+  @override
+  State<AgentStrApp> createState() => _AgentStrAppState();
+}
+
+class _AgentStrAppState extends State<AgentStrApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.processPendingNavigation();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        NotificationService.processPendingNavigation();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
