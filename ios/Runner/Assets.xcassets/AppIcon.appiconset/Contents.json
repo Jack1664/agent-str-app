@@ -1,31 +1,31 @@
 {
   "images" : [
     {
-      "filename" : "Icon-App-20x20@2x.png",
+      "filename" : "ic_launcher 8.png",
       "idiom" : "iphone",
       "scale" : "2x",
       "size" : "20x20"
     },
     {
-      "filename" : "Icon-App-20x20@3x.png",
+      "filename" : "ic_launcher 7.png",
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "20x20"
     },
     {
-      "filename" : "Icon-App-29x29@1x.png",
+      "filename" : "ic_launcher 9.png",
       "idiom" : "iphone",
       "scale" : "1x",
       "size" : "29x29"
     },
     {
-      "filename" : "Icon-App-29x29@2x.png",
+      "filename" : "ic_launcher 6.png",
       "idiom" : "iphone",
       "scale" : "2x",
       "size" : "29x29"
     },
     {
-      "filename" : "Icon-App-29x29@3x.png",
+      "filename" : "ic_launcher 5.png",
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "29x29"
