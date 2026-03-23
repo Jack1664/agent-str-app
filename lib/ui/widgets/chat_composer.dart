@@ -34,14 +34,22 @@ class ChatComposer extends StatefulWidget {
 
 class _ChatComposerState extends State<ChatComposer>
     with TickerProviderStateMixin {
+  static const Duration _longPressDelay = Duration(milliseconds: 260);
+
   final AudioRecorder _recorder = AudioRecorder();
 
   late final AnimationController _pulseController;
   Timer? _recordingTimer;
+  Timer? _longPressTimer;
 
   bool _isRecording = false;
   bool _cancelRecording = false;
+  bool _isMicPointerDown = false;
+  bool _didTriggerMicLongPress = false;
+  bool _startRecordingPending = false;
+  bool _finishRecordingAfterStart = false;
   Duration _recordingDuration = Duration.zero;
+  int? _activeMicPointer;
   Offset? _recordingStartGlobalPosition;
 
   @override
@@ -55,6 +63,7 @@ class _ChatComposerState extends State<ChatComposer>
 
   @override
   void dispose() {
+    _longPressTimer?.cancel();
     _recordingTimer?.cancel();
     _pulseController.dispose();
     _recorder.dispose();
@@ -107,6 +116,23 @@ class _ChatComposerState extends State<ChatComposer>
     }
   }
 
+  Future<void> _triggerLongPressRecording() async {
+    if (!_isMicPointerDown || _didTriggerMicLongPress) return;
+
+    _didTriggerMicLongPress = true;
+    _startRecordingPending = true;
+
+    try {
+      await _startRecording();
+    } finally {
+      _startRecordingPending = false;
+      if (_finishRecordingAfterStart && _isRecording) {
+        _finishRecordingAfterStart = false;
+        await _finishRecording();
+      }
+    }
+  }
+
   Future<void> _finishRecording() async {
     if (!_isRecording) return;
 
@@ -141,20 +167,81 @@ class _ChatComposerState extends State<ChatComposer>
     }
   }
 
-  void _updateCancelState(LongPressMoveUpdateDetails details) {
-    if (!_isRecording) return;
-    final shouldCancel = details.offsetFromOrigin.dx < -96;
-    if (shouldCancel != _cancelRecording && mounted) {
-      setState(() => _cancelRecording = shouldCancel);
-    }
-  }
-
   void _updateCancelStateFromPointer(Offset globalPosition) {
     if (!_isRecording || _recordingStartGlobalPosition == null) return;
     final shouldCancel =
         globalPosition.dx - _recordingStartGlobalPosition!.dx < -96;
     if (shouldCancel != _cancelRecording && mounted) {
       setState(() => _cancelRecording = shouldCancel);
+    }
+  }
+
+  void _handleMicPointerDown(PointerDownEvent event) {
+    if (_isRecording) return;
+
+    _longPressTimer?.cancel();
+    _activeMicPointer = event.pointer;
+    _isMicPointerDown = true;
+    _didTriggerMicLongPress = false;
+    _startRecordingPending = false;
+    _finishRecordingAfterStart = false;
+    _recordingStartGlobalPosition = event.position;
+
+    _longPressTimer = Timer(_longPressDelay, () {
+      _triggerLongPressRecording();
+    });
+  }
+
+  void _handleMicPointerMove(PointerMoveEvent event) {
+    if (_activeMicPointer != event.pointer) return;
+    if (_isRecording) {
+      _updateCancelStateFromPointer(event.position);
+    }
+  }
+
+  void _clearMicPointerState() {
+    _longPressTimer?.cancel();
+    _activeMicPointer = null;
+    _isMicPointerDown = false;
+  }
+
+  void _handleMicPointerUp() {
+    final wasLongPress = _didTriggerMicLongPress;
+    final isRecording = _isRecording;
+    final isPending = _startRecordingPending;
+
+    _clearMicPointerState();
+    _didTriggerMicLongPress = false;
+
+    if (isRecording) {
+      _finishRecording();
+      return;
+    }
+
+    if (isPending) {
+      _finishRecordingAfterStart = true;
+      return;
+    }
+
+    if (!wasLongPress) {
+      widget.onMic?.call();
+    }
+  }
+
+  void _handleMicPointerCancel() {
+    final isRecording = _isRecording;
+    final isPending = _startRecordingPending;
+
+    _clearMicPointerState();
+    _didTriggerMicLongPress = false;
+
+    if (isRecording) {
+      _finishRecording();
+      return;
+    }
+
+    if (isPending) {
+      _finishRecordingAfterStart = true;
     }
   }
 
@@ -181,18 +268,18 @@ class _ChatComposerState extends State<ChatComposer>
       child: Listener(
         behavior: HitTestBehavior.translucent,
         onPointerMove: (event) {
-          if (_isRecording) {
+          if (_activeMicPointer == event.pointer && _isRecording) {
             _updateCancelStateFromPointer(event.position);
           }
         },
-        onPointerUp: (_) {
-          if (_isRecording) {
-            _finishRecording();
+        onPointerUp: (event) {
+          if (_activeMicPointer == event.pointer) {
+            _handleMicPointerUp();
           }
         },
-        onPointerCancel: (_) {
-          if (_isRecording) {
-            _finishRecording();
+        onPointerCancel: (event) {
+          if (_activeMicPointer == event.pointer) {
+            _handleMicPointerCancel();
           }
         },
         child: AnimatedSwitcher(
@@ -399,14 +486,11 @@ class _ChatComposerState extends State<ChatComposer>
           );
         }
 
-        return GestureDetector(
+        return Listener(
           key: const ValueKey<String>('mic_button'),
-          onTap: !_isRecording ? widget.onMic : null,
-          onLongPressStart: (details) async {
-            _recordingStartGlobalPosition = details.globalPosition;
-            await _startRecording();
-          },
-          onLongPressMoveUpdate: _updateCancelState,
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _handleMicPointerDown,
+          onPointerMove: _handleMicPointerMove,
           child: SizedBox(
             width: _isRecording ? 72 : 44,
             height: _isRecording ? 72 : 44,
